@@ -1,4 +1,5 @@
 from subprocess import check_output
+import shutil
 from socket import *
 import hashlib
 from sys import argv
@@ -20,24 +21,33 @@ def getHashKey(value):
 
 
 def closestToKey(key):
-    if key > MY_ADDER.getHashKey() and key < SUCC_ADDR.getHashKey:
+    #TODO account for wrap around
+    #Put in for loop
+    if key > getHashKey(MY_ADDR) and key < getHashKey(SUCC_ADDR):
+        print('1 {}'.format(MY_ADDR))
         return MY_ADDR
-    elif key > SUCC_ADDER.getHashKey() and key < FINGER_TABLE[0].getHashKey():
+    elif key > getHashKey(SUCC_ADDR) and key < getHashKey(FINGER_TABLE[0]):
+        print('2 {}'.format(SUCC_ADDR))
         return SUCC_ADDR
-    elif key > FINGER_TABLE[0].getHashKey() and key < FINGER_TABLE[1].getHashKey():
+    elif key > getHashKey(FINGER_TABLE[0]) and key < getHashKey(FINGER_TABLE[1]):
+        print('3 {}'.format(FINGER_TABLE[0]))
         return FINGER_TABLE[0]
-    elif key > FINGER_TABLE[1].getHashKey() and key < FINGER_TABLE[2].getHashKey():
+    elif key > getHashKey(FINGER_TABLE[1]) and key < getHashKey(FINGER_TABLE[2]):
+        print('4 {}'.format(FINGER_TABLE[1]))
         return FINGER_TABLE[1]
-    elif key > FINGER_TABLE[2].getHashKey() and key < FINGER_TABLE[3].getHashKey():
+    elif key > getHashKey(FINGER_TABLE[2]) and key < getHashKey(FINGER_TABLE[3]):
+        print('5 {}'.format(FINGER_TABLE[2]))
         return FINGER_TABLE[2]
-    elif key > FINGER_TABLE[3].getHashKey() and key < PRED_ADDR.getHashKey():
-        return FINGER_TABLE[3] 
+    elif key > getHashKey(FINGER_TABLE[3]) and key < getHashKey(PRED_ADDR):
+        print('6 {}'.format(FINGER_TABLE[3]))
+        return FINGER_TABLE[3]
     else:
+        print('7 {}'.format(PRED_ADDR))
         return PRED_ADDR;
 
 
-def contains(fileName):
-    fileKey = getHashKey(fileName)
+def containedLocal(searchString):
+    fileKey = getHashKey(searchString)
     
     if MY_ADDR == SUCC_ADDR:
         if fileKey in getMyFileKeys():
@@ -45,13 +55,35 @@ def contains(fileName):
         return False
 
 
+def closestPeer(searchString):
+    key = getHashKey(searchString)
+    closest = closestToKey(key)
+    if closest == MY_ADDR:
+        return closest
+    else:
+        #network protocol
+        #send clop and key to closest
+        #get back node address
+        #if closets == node address return nodeaddress
+        #else repeat
+        pass
+
+def insert(searchString):
+    key = getHashKey(searchString)
+    storeAddr = closestPeer(searchString)
+    if storeAddr == MY_ADDR:
+        #store locally
+        print("storing {} locally".format(searchString))
+        shutil.copy(searchString, 'repository/{}'.format(key))
+    else:
+        #network protocol
+        pass
 
 def startNewSystem():
     SUCC_ADDR = MY_ADDR
     PRED_ADDR = MY_ADDR
     for i in range(NUM_FINGERS):
         FINGER_TABLE.append(MY_ADDR)
-
 
 def getMyFileKeys():
     fileKeys = os.listdir('./repository')    
@@ -100,11 +132,12 @@ if __name__ == '__main__':
     while running:
         line = input('> ')
         command = line.split()[0]
-        if command[0] not in COMMANDS:
+        command = command.lower()
+        if command not in COMMANDS:
             continue
-        if command.lower() == 'disconnect':
+        if command == 'disconnect':
             pass
-        elif command.lower() == 'help':
+        elif command == 'help':
             help()
         else:
             try:
@@ -112,6 +145,8 @@ if __name__ == '__main__':
             except:
                 print('Must specify a file name')
                 continue
-            if not contains(fileName):
+            if command == 'insert':
+                insert(fileName)
+#            if not containedLocal(fileName):
 
 
