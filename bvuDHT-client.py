@@ -9,6 +9,7 @@ import os
 
 
 # Global variables we want to keep track of
+SHA1_SIZE = 
 MY_ADDR = ''
 SUCC_ADDR = ''
 PRED_ADDR = ''
@@ -27,6 +28,27 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
 def getHashKey(value):
     key = hashlib.sha1(value.encode()).hexdigest()
     return key
+
+
+# Finds the offsets of where your fingers should be
+def getFingerOffsets(MY_ADDR):
+    # maxHash is the highest value that the circle can store
+    maxHash = "ffffffffffffffffffffffffffffffffffffffff"
+    maxHash = int(maxHash, 16)
+    offset = maxHash / NUM_FINGERS
+    # Get the key and turn it into a regular base 10 int
+    key = hashlib.sha1(MY_ADDR.encode()).hexdigest()
+    key = int(key, 16)
+    # Add NUM_FINGERS hash values to a list and return it
+    offsetList = []
+    for i in range(NUM_FINGERS):
+        if key + (offset * (i+1)) > maxHash:
+            # For the wrap around here, I just subtracted the max
+            # from the larger than max number
+            offestList.append( (key + (offset * (i+1))) - maxHash )
+        else:
+            offsetList.append( key + (offset * (i+1)) )
+    return offsetList
 
 
 # Finds out who we know that is closest to the key
