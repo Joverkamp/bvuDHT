@@ -2,14 +2,13 @@ from subprocess import check_output
 import shutil
 from socket import *
 import hashlib
-from sys import argv
+from sys import argv, exit
 from pathlib import Path
 import threading
 import os
 
 
 # Global variables we want to keep track of
-SHA1_SIZE = 
 MY_ADDR = ''
 SUCC_ADDR = ''
 PRED_ADDR = ''
@@ -35,7 +34,7 @@ def getFingerOffsets(MY_ADDR):
     # maxHash is the highest value that the circle can store
     maxHash = "ffffffffffffffffffffffffffffffffffffffff"
     maxHash = int(maxHash, 16)
-    offset = maxHash / NUM_FINGERS
+    offset = int(maxHash / (NUM_FINGERS + 1))
     # Get the key and turn it into a regular base 10 int
     key = hashlib.sha1(MY_ADDR.encode()).hexdigest()
     key = int(key, 16)
@@ -45,48 +44,29 @@ def getFingerOffsets(MY_ADDR):
         if key + (offset * (i+1)) > maxHash:
             # For the wrap around here, I just subtracted the max
             # from the larger than max number
-            offestList.append( (key + (offset * (i+1))) - maxHash )
+            offsetList.append( hex((key + (offset * (i+1))) - maxHash)[2:] )
         else:
-            offsetList.append( key + (offset * (i+1)) )
+            offsetList.append( hex(key + (offset * (i+1)))[2:] )
     return offsetList
 
 
 # Finds out who we know that is closest to the key
 def closestToKey(key):
-    #TODO account for wrap around
-    #Put in for loop
-    if key > getHashKey(MY_ADDR) and key < getHashKey(SUCC_ADDR):
-        print('1 {}'.format(MY_ADDR))
-        return MY_ADDR
-    elif key > getHashKey(SUCC_ADDR) and key < getHashKey(FINGER_TABLE[0]):
-        print('2 {}'.format(SUCC_ADDR))
-        return SUCC_ADDR
-    elif key > getHashKey(FINGER_TABLE[0]) and key < getHashKey(FINGER_TABLE[1]):
-        print('3 {}'.format(FINGER_TABLE[0]))
-        return FINGER_TABLE[0]
-    elif key > getHashKey(FINGER_TABLE[1]) and key < getHashKey(FINGER_TABLE[2]):
-        print('4 {}'.format(FINGER_TABLE[1]))
-        return FINGER_TABLE[1]
-    elif key > getHashKey(FINGER_TABLE[2]) and key < getHashKey(FINGER_TABLE[3]):
-        print('5 {}'.format(FINGER_TABLE[2]))
-        return FINGER_TABLE[2]
-    elif key > getHashKey(FINGER_TABLE[3]) and key < getHashKey(PRED_ADDR):
-        print('6 {}'.format(FINGER_TABLE[3]))
-        return FINGER_TABLE[3]
-    else:
-        print('7 {}'.format(PRED_ADDR))
-        return PRED_ADDR;
+    FINGER_TABLE.sort()
+    for i in range(len(FINGER_TABLE) - 1):
+        if key > FINGER_TABLE[i][0] and key < FINGER_TABLE[i+1][0]:
+            return FINGER_TABLE[i][1]
+    return FINGER_TABLE[-1][1]
 
 
 # Helper function that tells us if we are the owner of the file
 def containedLocal(searchString):
     fileKey = getHashKey(searchString)
-    
-    # TODO May need to change this to reflect how we do the new finger table
     if MY_ADDR == SUCC_ADDR:
         if fileKey in getMyFileKeys():
             return True
         return False
+
 
 
 # Finds who is the closest peer to the string we want to search by
@@ -110,19 +90,59 @@ def insert(searchString):
     storeAddr = closestPeer(searchString)
     if storeAddr == MY_ADDR:
         #store locally
-        print("storing {} locally".format(searchString))
+        print("Storing {} locally.".format(searchString))
         shutil.copy(searchString, 'repository/{}'.format(key))
     else:
         #network protocol
         pass
 
 
+# Removes a file from teh DHT if it's there
+def remove(searchString):
+    key = getHashKey(searchString)
+    if containedLocal(searchString) == True:
+        os.remove("repository/"+ key)
+        print("Removing {} locally.".format(searchString))
+    else:
+        pass
+        #TODO Add network protocal here
+
+
+# Prints if the file is found or not
+def contains(searchString):
+    if containedLocal(searchString) == True:
+        print("File {} exists.".format(searchString))
+    elif True == False:
+        # TODO Network stuff
+        pass
+    else:
+        print("File {} NOT found.".format(searchString))
+
+
+def disconnect():
+    if MY_ADDR == SUCC_ADDR:
+        print("Goodbye")
+        exit(0)
+    else:
+        pass
+    #TODO network stuff
+
 # Function to call when the user wants to create their own system
 def startNewSystem():
+    global SUCC_ADDR
+    global PRED_ADDR
     SUCC_ADDR = MY_ADDR
     PRED_ADDR = MY_ADDR
+    fingers = getFingerOffsets(MY_ADDR)
     for i in range(NUM_FINGERS):
-        FINGER_TABLE.append(MY_ADDR)
+        FINGER_TABLE.append((fingers[i], MY_ADDR))
+    for i in range(3):
+        FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
+
+
+# Function to call when the user is joining by another user
+def joinSystem(IP, port):
+    print(IP + " " + str(port))
 
 
 # Returns a list of all the keys we own
@@ -167,7 +187,9 @@ if __name__ == '__main__':
         startNewSystem()
     else:
         # Have to get values from person we know in system
-        pass
+        IP = argv[1]
+        port = int(argv[2])
+        joinSystem(IP, port)
 
     # Main run loop
     running = True
@@ -179,7 +201,7 @@ if __name__ == '__main__':
         if command not in COMMANDS:
             continue
         if command == 'disconnect':
-            pass
+            disconnect()
         elif command == 'help':
             help()
         else:
@@ -190,6 +212,7 @@ if __name__ == '__main__':
                 continue
             if command == 'insert':
                 insert(fileName)
-#            if not containedLocal(fileName):
-
-
+            elif command == "remove":
+                remove(fileName)
+            elif command == "contains":
+                contains(fileName)
