@@ -24,6 +24,18 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
 # Port we are listening on
 listeningPort = 1111
 
+def listen(listener):
+    #Create a listening socket to receive requests from peers
+    listener.listen(4)
+    running = True
+    while running:
+        threading.Thread(target=handleRequests, args=(listener.accept(),),daemon=True).start()
+
+
+def handleRequests():
+    print("Connection made")
+
+
 # Returns us a hashed value of the string 
 def getHashKey(value):
     key = hashlib.sha1(value.encode()).hexdigest()
@@ -191,6 +203,9 @@ if __name__ == '__main__':
         IP = argv[1]
         port = int(argv[2])
         joinSystem(IP, port)
+
+    listenThread = threading.Thread(target=listen, args=(listener,),            daemon=False).start()
+
 
     # Main run loop
     running = True
