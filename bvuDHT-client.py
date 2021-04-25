@@ -21,7 +21,8 @@ NUM_FINGERS = 4
 FINGER_TABLE = []
 # A list of commands that the user is allowed to use
 COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
-
+# Port we are listening on
+listeningPort = 1111
 
 # Returns us a hashed value of the string 
 def getHashKey(value):
@@ -66,7 +67,6 @@ def containedLocal(searchString):
         if fileKey in getMyFileKeys():
             return True
         return False
-
 
 
 # Finds who is the closest peer to the string we want to search by
@@ -142,6 +142,7 @@ def startNewSystem():
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
+    # Send CONN and myAddr to who you know
     print(IP + " " + str(port))
 
 
