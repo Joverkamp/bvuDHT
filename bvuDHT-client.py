@@ -162,6 +162,15 @@ def startNewSystem():
 def joinSystem(IP, port):
     # Send CONN and myAddr to who you know
     print(IP + " " + str(port))
+    joinSock = socket(AF_INET, SOCK_STREAM)
+    joinSock.connect( (IP, port))
+    conn = "CONN"
+    joinSock.send(conn.encode())
+    joinSock.send(MY_ADDR.encode())
+    TF = joinSock.recv(1)
+    if TF == "T":
+        
+    else:
 
 
 # Returns a list of all the keys we own
