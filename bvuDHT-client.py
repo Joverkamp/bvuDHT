@@ -24,6 +24,12 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
 # Port we are listening on
 listeningPort = 1111
 
+def recvAll(sock, numBytes):
+    data = b''
+    while (len(data) < numBytes):
+        data += sock.recv(numBytes - len(data))
+    return data
+
 def listen(listener):
     #Create a listening socket to receive requests from peers
     listener.listen(4)
@@ -32,8 +38,8 @@ def listen(listener):
         threading.Thread(target=handleRequests, args=(listener.accept(),),daemon=True).start()
 
 
-def handleRequests():
-    print("Connection made")
+def handleRequests(conn):
+    
 
 
 # Returns us a hashed value of the string 
@@ -186,6 +192,8 @@ if __name__ == '__main__':
     listener.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     listener.bind(('', 0))
     listeningPort = listener.getsockname()[1]
+
+    print(listeningPort)
 
     # Set my address
     ip = check_output(['hostname', '-I']).decode().rstrip()
