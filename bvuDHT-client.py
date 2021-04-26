@@ -30,6 +30,13 @@ def recvAll(sock, numBytes):
         data += sock.recv(numBytes - len(data))
     return data
 
+def recvAddr(sock):
+    data = recvAll(sock, 4)
+    addrSize = int.from_bytes(data, byteorder="little", signed=False)
+    data = recvAll(sock, addrSize)
+    addr = data.decode()
+    return addr
+
 def listen(listener):
     #Create a listening socket to receive requests from peers
     listener.listen(4)
@@ -37,9 +44,20 @@ def listen(listener):
     while running:
         threading.Thread(target=handleRequests, args=(listener.accept(),),daemon=True).start()
 
-
-def handleRequests(conn):
-    
+def handleRequests(connInfo):
+    sock, connAddr = connInfo
+    code  = recvAll(sock, 4).decode()
+    if code == "CONN":
+        connectorAddr = recvAddr(sock)
+        connectorHash = getHashKey(connectorAddr)
+        if closestToKey(connectorHash) == MYADDR:
+            sock.send("T".encode())
+        else:
+            sock.send("F".encode())
+            closest = getClosest(connectorHash)
+            #TODO what do we send along with F 
+    else: 
+        print("Got something else")
 
 
 # Returns us a hashed value of the string 
@@ -169,8 +187,9 @@ def joinSystem(IP, port):
     joinSock.send(MY_ADDR.encode())
     TF = joinSock.recv(1)
     if TF == "T":
-        
+        pass   
     else:
+        pass
 
 
 # Returns a list of all the keys we own
