@@ -29,6 +29,54 @@ def sendAddr(addr, conn):
     conn.send(sz.to_bytes(4, byteorder="little", signed=False))
     conn.send(addr.encode())
 
+def readFile(fileHash):
+    fileBytes = []
+    f = open("repository/{}".format(fileHash), "rb")
+    byte = f.read(1)
+    while byte:
+        fileBytes.append(byte)
+        byte = f.read(1)
+    return fileBytes
+
+def sendFile(fileHash, fileBytes, conn):
+    sz = len(fileBytes)
+    conn.send(fileHash.encode())
+    conn.send(sz.to_bytes(4, byteorder="little", signed=False))
+    for byte in fileBytes:
+        conn.send(byte)
+
+def filesTransfer(sock, connectorHash):    
+    # Retreive files available for sending
+    folder = Path("./repository")
+    if not folder.exists():
+        folder.mkdir(parents=True, exist_ok=True)
+    # Retrieve our file hashes
+    fileHashes = []
+    for entry in folder.iterdir():
+        if not entry.is_dir():
+            fileHashes.append(entry.name)
+    # Get number of files to send
+    filesToSend = []
+    succHash = getHashKey(SUCC_ADDR)
+
+    # Find which files to transfer considering wrap around
+    if succHash < connectorHash:
+        for fileHash in fileHashes:
+            if fileHash < succHash or fileHash > connectorHash:
+                filesToSend.append(fileHash)
+    else:
+        for fileHash in fileHashes:
+            if fileHash > connectorHash:
+                filesToSend.append(fileHash)
+
+    # Send number of files followed by each file following protocol
+    sz = len(filesToSend)
+    sock.send(sz.to_bytes(4, byteorder="little", signed=False))
+    for fileHash in filesToSend:
+        fileBytes = readFile(fileHash)
+        sendFile(fileHash, fileBytes, sock)
+
+
 
 def recvAll(sock, numBytes):
     data = b''
@@ -50,18 +98,32 @@ def listen(listener):
     while running:
         threading.Thread(target=handleRequests, args=(listener.accept(),),daemon=True).start()
 
+
 def handleRequests(connInfo):
     sock, connAddr = connInfo
     code  = recvAll(sock, 4).decode()
+    #Protocol for incoming CONN
     if code == "CONN":
         connectorAddr = recvAddr(sock)
         connectorHash = getHashKey(connectorAddr)
-        if closestToKey(connectorHash) == MYADDR:
+        if closestToKey(connectorHash) == MY_ADDR:
             sock.send("T".encode())
+            sendAddr(SUCC_ADDR, sock)
+            filesTransfer(sock, connectorHash)
+            confirm = recvAll(sock, 1).decode()
+            if confirm == "T":
+                #TODO
+                print("Delete files")
         else:
             sock.send("F".encode())
             closest = getClosest(connectorHash)
-            #TODO what do we send along with F 
+            #TODO what do we send along with F
+    elif code == "PRUP":
+        print("Got prup req")
+        global PRED_ADDR
+        newPred = recvAddr(sock)
+        PRED_ADDR = newPred
+        sock.send("T".encode())
     else: 
         print("Got something else")
 
@@ -231,6 +293,10 @@ if __name__ == '__main__':
     # Set my address
     ip = check_output(['hostname', '-I']).decode().rstrip()
     MY_ADDR = '{}:{}'.format(ip,listeningPort)
+
+
+    print("My key: {}".format(getHashKey(MY_ADDR)))
+
 
     # Check for repository to store files
     folder = Path('./repository')
