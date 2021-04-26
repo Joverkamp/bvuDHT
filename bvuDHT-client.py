@@ -21,8 +21,9 @@ NUM_FINGERS = 4
 FINGER_TABLE = []
 # A list of commands that the user is allowed to use
 COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
-# Port we are listening on
+# Port we are listening on this will get overwritten
 listeningPort = 1111
+
 
 def sendAddr(addr, conn):
     sz = len(addr)
@@ -36,6 +37,7 @@ def recvAll(sock, numBytes):
         data += sock.recv(numBytes - len(data))
     return data
 
+
 def recvAddr(sock):
     data = recvAll(sock, 4)
     addrSize = int.from_bytes(data, byteorder="little", signed=False)
@@ -43,12 +45,14 @@ def recvAddr(sock):
     addr = data.decode()
     return addr
 
+
 def listen(listener):
     #Create a listening socket to receive requests from peers
     listener.listen(4)
     running = True
     while running:
         threading.Thread(target=handleRequests, args=(listener.accept(),),daemon=True).start()
+
 
 def handleRequests(connInfo):
     sock, connAddr = connInfo
@@ -63,7 +67,7 @@ def handleRequests(connInfo):
             closest = getClosest(connectorHash)
             #TODO what do we send along with F 
     else: 
-        print("Got something else")
+        print("Got something else in handleRequests")
 
 
 # Returns us a hashed value of the string 
@@ -184,17 +188,63 @@ def startNewSystem():
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
+    global SUCC_ADDR
     joinSock = socket(AF_INET, SOCK_STREAM)
     joinSock.connect( (IP, port))
+    # Basic start of connect where we send conn and addr
     conn = "CONN"
     joinSock.send(conn.encode())
     sendAddr(MY_ADDR, joinSock)
-    
+    # If true or false
     TF = joinSock.recv(1)
-    if TF == "T":
-        pass   
+    if TF.decode() == "T":
+        SUCC_ADDR = recvAddr(joinSock)
+        print("SUCC_ADDR: " + SUCC_ADDR)
+        # Get all the files we need to take over and put in repository
+        numFiles = recvAll(joinSock, 4)
+        numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
+        for i in range(numFiles):
+            key = recvAll(joinSock, 40)
+            key = key.decode()
+            sz = recvAll(joinSock, 4)
+            sz = int.from_bytes(sz, byteorder="little", signed=False)
+            data = recvAll(joinSock, sz)
+            path = Path('./repository/' + key)
+            with open(path, 'wb') as outf:
+                outf.write(data)
+        # Do Predecessor update stuff
+        succ_list = SUCC_ADDR.split(":")
+        newSuccSock = socket(AF_INET, SOCK_STREAM)
+        newSuccSock.connect( (succ_list[0], int(succ_list[1])))
+        prup = "PRUP"
+        newSuccSock.send(prup.encode())
+        sendAddr(MY_ADDR, newSuccSock)
+        TF = newSuccSock.recv(1)
+        TF = TF.decode()
+        if TF == "T":
+            # Send Final True to person you connected to in the beginning
+            joinSock.send("T".encode())
+            # Close both the sockets
+            newSuccSock.close()
+            joinSock.close()
     else:
-        pass
+        print("That was not the correct person to connect to.")
+        print("They do not own the spcae you need to be inserted into.")
+        # Close the join socket becesue the other side will too
+        joinSock.close()
+        # Do CLOP call to this person to see who it has changed to
+        clopSock = socket(AF_INET, SOCK_STREAM)
+        clopSock.connect( (IP, port) )
+        clop = "CLOP"
+        clopSock.send(clop.encode())
+        myAddr = getHashKey(MY_ADDR)
+        clopSock.send(myAddr.encode())
+        newConn = recvAddr(clopSock)
+        # Make sure to close the clop socket after this
+        clopSock.close()
+        # Call joinSystem again on a differnt peer now
+        newConn = newConn.split(":")
+        joinSystem(newConn[0], int(newConn[1]))
 
 
 # Returns a list of all the keys we own
@@ -226,11 +276,12 @@ if __name__ == '__main__':
     listener.bind(('', 0))
     listeningPort = listener.getsockname()[1]
 
-    print(listeningPort)
+    print("listeningPort: " + str(listeningPort))
 
     # Set my address
     ip = check_output(['hostname', '-I']).decode().rstrip()
     MY_ADDR = '{}:{}'.format(ip,listeningPort)
+    print("My address as a hash:  " + getHashKey(MY_ADDR))
 
     # Check for repository to store files
     folder = Path('./repository')
