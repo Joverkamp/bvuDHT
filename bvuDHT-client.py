@@ -24,11 +24,18 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
 # Port we are listening on
 listeningPort = 1111
 
+def sendAddr(addr, conn):
+    sz = len(addr)
+    conn.send(sz.to_bytes(4, byteorder="little", signed=False))
+    conn.send(addr.encode())
+
+
 def recvAll(sock, numBytes):
     data = b''
     while (len(data) < numBytes):
         data += sock.recv(numBytes - len(data))
     return data
+
 
 def listen(listener):
     #Create a listening socket to receive requests from peers
@@ -39,7 +46,6 @@ def listen(listener):
 
 
 def handleRequests(conn):
-    
 
 
 # Returns us a hashed value of the string 
@@ -160,17 +166,18 @@ def startNewSystem():
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
-    # Send CONN and myAddr to who you know
-    print(IP + " " + str(port))
     joinSock = socket(AF_INET, SOCK_STREAM)
     joinSock.connect( (IP, port))
     conn = "CONN"
     joinSock.send(conn.encode())
-    joinSock.send(MY_ADDR.encode())
+    sendAddr(MY_ADDR, joinSock)
+    
     TF = joinSock.recv(1)
-    if TF == "T":
-        
+    if TF.decode() == "T":
+        print("T")
+
     else:
+        print("F")
 
 
 # Returns a list of all the keys we own
@@ -221,7 +228,7 @@ if __name__ == '__main__':
         port = int(argv[2])
         joinSystem(IP, port)
 
-    listenThread = threading.Thread(target=listen, args=(listener,),            daemon=False).start()
+    listenThread = threading.Thread(target=listen, args=(listener,),daemon=False).start()
 
 
     # Main run loop
