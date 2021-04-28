@@ -92,8 +92,13 @@ def recvFiles(numFiles, sock):
 
 def deleteFiles(toDelete):
     for f in toDelete:
-        os.remove("repository/{}".format(f))
-        print("Deleted {}".format(f))
+        try:
+            os.remove("repository/{}".format(f))
+            print("Deleted {}".format(f))
+            return True
+        except: 
+            print("File not deleted {}".format(f))
+            return False
 
 def filesTransfer(sock, connectorHash):
     # Retreive files available for sending
@@ -200,7 +205,17 @@ def handleRequests(connInfo):
             sock.send("T".encode())
         else:
             sock.send("F".encode())
-
+    elif code == "RMVE":
+        key = recvAll(sock, 40).decode()
+        closest = closestToKey(key)
+        if closest == MY_ADDR:
+            sock.send("T".encode())
+            if deleteFiles([key]) == True:
+                sock.send("T".encode())
+            else: 
+                sock.send("F".encode())
+        else:
+            sock.send("F".encode())
     else:
         print("Got something else in handleRequests")
 
