@@ -202,12 +202,34 @@ def getFingerOffsets(MY_ADDR):
     return offsetList
 
 
+def setFingers():
+    global FINGER_TABLE
+    FINGER_TABLE = []
+    offsets = getFingerOffsets(MY_ADDR)
+    for finger in offsets:
+        askAddr = MY_ADDR
+        recvAddr = "1"
+        while askAddr != recvAddr:
+            askAddrSplit = askAddr.split(":")
+            clopSock = socket(AF_INET, SOCK_STREAM)
+            clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
+            clopSock.send("CLOP".encode())
+            clopSock.send(key.encode())
+            recvAddr = recvAddr(clopSock)
+        FINGER_TABLE.append((finger, recvAddr))
+    FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
+    FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
+    FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
+    FINGER_TABLE.sort()
+
+
+
 # Finds out who we know that is closest to the key
 def closestToKey(key):
-    FINGER_TABLE.sort()
     for i in range(len(FINGER_TABLE) - 1):
         if key > FINGER_TABLE[i][0] and key < FINGER_TABLE[i+1][0]:
             return FINGER_TABLE[i][1]
+    print(FINGER_TABLE)
     return FINGER_TABLE[-1][1]
 
 
@@ -285,6 +307,7 @@ def disconnect():
 def startNewSystem():
     global SUCC_ADDR
     global PRED_ADDR
+    global FINGER_TABLE
     SUCC_ADDR = MY_ADDR
     PRED_ADDR = MY_ADDR
     fingers = getFingerOffsets(MY_ADDR)
@@ -292,11 +315,13 @@ def startNewSystem():
         FINGER_TABLE.append((fingers[i], MY_ADDR))
     for i in range(3):
         FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
+    FINGER_TABLE.sort()
 
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
     global SUCC_ADDR
+    global PRED_ADDR
     joinSock = socket(AF_INET, SOCK_STREAM)
     joinSock.connect( (IP, port))
     # Basic start of connect where we send conn and addr
@@ -306,8 +331,10 @@ def joinSystem(IP, port):
     # If true or false
     TF = joinSock.recv(1)
     if TF.decode() == "T":
+        # Set pred and succ addr and fingers
+        PRED_ADDR = "{}:{}".format(IP, port)
         SUCC_ADDR = recvAddr(joinSock)
-        print("SUCC_ADDR: " + SUCC_ADDR)
+        setFingers()
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
