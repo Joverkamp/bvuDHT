@@ -155,6 +155,7 @@ def handleRequests(connInfo):
         global PRED_ADDR
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
+        printFingers()##################################################
         sock.send("T".encode())
     elif code == "CLOP":
         key = recvAll(sock, 40).decode()
