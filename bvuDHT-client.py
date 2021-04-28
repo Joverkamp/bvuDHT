@@ -203,20 +203,25 @@ def getFingerOffsets(MY_ADDR):
     return offsetList
 
 
+def closestNow(Addr, key):
+    askAddr = Addr
+    recvAddress = "1"
+    while askAddr != recvAddress:
+        askAddrSplit = askAddr.split(":")
+        clopSock = socket(AF_INET, SOCK_STREAM)
+        clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
+        clopSock.send("CLOP".encode())
+        clopSock.send(key.encode())
+        recvAddress = recvAddr(clopSock)
+    return recvAddress
+
+
 def setFingers(Addr):
     global FINGER_TABLE
     FINGER_TABLE = []
     offsets = getFingerOffsets(MY_ADDR)
     for finger in offsets:
-        askAddr = Addr
-        recvAddress = "1"
-        while askAddr != recvAddress:
-            askAddrSplit = askAddr.split(":")
-            clopSock = socket(AF_INET, SOCK_STREAM)
-            clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
-            clopSock.send("CLOP".encode())
-            clopSock.send(finger.encode())
-            recvAddress = recvAddr(clopSock)
+        recvAddress = closestNow(Addr, finger)
         FINGER_TABLE.append((finger, recvAddress))
     FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
     FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
@@ -246,13 +251,13 @@ def insert(searchString):
     key = getHashKey(searchString)
     storeAddr = closestToKey(key)
     if storeAddr == MY_ADDR:
-        #store locally
+        # Store locally
         print("Storing {} locally.".format(searchString))
         shutil.copy(searchString, 'repository/{}'.format(key))
     else:
-        #network protocol
         pass
-
+        closest = closestNow(storeAddr,key)
+        closest = closest.split(":")
 
 # Removes a file from teh DHT if it's there
 def remove(searchString):
@@ -317,6 +322,18 @@ def startNewSystem():
     FINGER_TABLE.sort()
 
 
+def recvFiles(numFiles, sock):
+    for i in range(numFiles):
+        key = recvAll(sock, 40)
+        key = key.decode()
+        sz = recvAll(sock, 4)
+        sz = int.from_bytes(sz, byteorder="little", signed=False)
+        data = recvAll(sock, sz)
+        path = Path('./repository/' + key)
+        with open(path, 'wb') as outf:
+            outf.write(data)
+
+
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
     global SUCC_ADDR
@@ -337,15 +354,7 @@ def joinSystem(IP, port):
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
-        for i in range(numFiles):
-            key = recvAll(joinSock, 40)
-            key = key.decode()
-            sz = recvAll(joinSock, 4)
-            sz = int.from_bytes(sz, byteorder="little", signed=False)
-            data = recvAll(joinSock, sz)
-            path = Path('./repository/' + key)
-            with open(path, 'wb') as outf:
-                outf.write(data)
+        recvFiles(numFiles, joinSock)
         # Do Predecessor update stuff
         succ_list = SUCC_ADDR.split(":")
         newSuccSock = socket(AF_INET, SOCK_STREAM)
@@ -403,7 +412,6 @@ if __name__ == '__main__':
     if len(argv) not in [1, 3]:
         print('Usage: {}')
         print('Usage: {} <IP> <PORT>')
-
     # Set up listener 
     listener = socket(AF_INET, SOCK_STREAM)
     listener.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
