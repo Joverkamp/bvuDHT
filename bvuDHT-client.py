@@ -71,6 +71,11 @@ def sendFile(fileHash, fileBytes, sock):
     for byte in fileBytes:
         sock.send(byte)
 
+def deleteFiles(toDelete):
+    for f in toDelete:
+        os.remove("repository/{}".format(f))
+        print("Deleted {}".format(f))
+
 def filesTransfer(sock, connectorHash):
     # Retreive files available for sending
     folder = Path("./repository")
@@ -102,6 +107,7 @@ def filesTransfer(sock, connectorHash):
         fileBytes = readFile(fileHash)
         sendFile(fileHash, fileBytes, sock)
 
+    return filesToSend
 
 
 def recvAll(sock, numBytes):
@@ -137,22 +143,35 @@ def handleRequests(connInfo):
         if closestToKey(connectorHash) == MY_ADDR:
             sock.send("T".encode())
             sendAddr(SUCC_ADDR, sock)
-            filesTransfer(sock, connectorHash)
+            toDelete = filesTransfer(sock, connectorHash)
             confirm = recvAll(sock, 1).decode()
             if confirm == "T":
-                #TODO
-                print("Delete files")
+                deleteFiles(toDelete)
         else:
             sock.send("F".encode())
-            closest = getClosest(connectorHash)
-            #TODO what do we send along with F
+            sock.close()
     elif code == "PRUP":
         print("Got prup req")
         global PRED_ADDR
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
         sock.send("T".encode())
-    else: 
+    elif code == "CLOP":
+        key = recvAll(sock, 40).decode()
+        closest = closestToKey(key)
+        sendAddr(closest, sock)
+    elif code == "CONT":
+        key = recvAll(sock, 40).decode()
+        closest = closestToKey(key)
+        if closest == MY_ADDR:
+            sock.send("T".encode())
+            if containedLocal(key) == True:
+                sock.send("T".encode())
+            else: 
+                sock.send("F".encode())
+        else: 
+            sock.send("F".encode())
+    else:
         print("Got something else in handleRequests")
 
 
@@ -193,12 +212,12 @@ def closestToKey(key):
 
 
 # Helper function that tells us if we are the owner of the file
-def containedLocal(searchString):
-    fileKey = getHashKey(searchString)
-    if MY_ADDR == SUCC_ADDR:
-        if fileKey in getMyFileKeys():
-            return True
-        return False
+def containedLocal(key):
+    #fileKey = getHashKey(searchString)
+    #if MY_ADDR == SUCC_ADDR:
+    if key in getMyFileKeys():
+        return True
+    return False
 
 
 # Stores a file in the DHT
@@ -217,13 +236,12 @@ def insert(searchString):
 # Removes a file from teh DHT if it's there
 def remove(searchString):
     key = getHashKey(searchString)
-    if containedLocal(searchString) == True:
+    if containedLocal(key) == True:
         os.remove("repository/"+ key)
         print("Removing {} locally.".format(searchString))
     else:
         pass
         #TODO Add network protocal here
-
 
 # Prints if the file is found or not
 def contains(searchString):
