@@ -24,11 +24,29 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
 # Port we are listening on this will get overwritten
 listeningPort = 1111
 
+def printFingers():
+    myKey = getHashKey(MY_ADDR)
+    predKey = getHashKey(PRED_ADDR)
+    succKey = getHashKey(SUCC_ADDR)
+    print("My Address")
+    print("   {}".format(MY_ADDR))
+    print("   {}".format(myKey))
+    print("Pred Address")
+    print("   {}".format(PRED_ADDR))
+    print("   {}".format(predKey))
+    print("Succ Address")
+    print("   {}".format(SUCC_ADDR))
+    print("   {}".format(succKey))
+    for finger in FINGER_TABLE:
+        if finger[0] != myKey and finger[0] != predKey and finger[0] != succKey:
+            print("Finger Address")
+            print("   {}".format(finger[1]))
+            print("   {}".format(finger[0]))           
 
-def sendAddr(addr, conn):
+def sendAddr(addr, sock):
     sz = len(addr)
-    conn.send(sz.to_bytes(4, byteorder="little", signed=False))
-    conn.send(addr.encode())
+    sock.send(sz.to_bytes(4, byteorder="little", signed=False))
+    sock.send(addr.encode())
 
 def readFile(fileHash):
     fileBytes = []
@@ -39,14 +57,14 @@ def readFile(fileHash):
         byte = f.read(1)
     return fileBytes
 
-def sendFile(fileHash, fileBytes, conn):
+def sendFile(fileHash, fileBytes, sock):
     sz = len(fileBytes)
-    conn.send(fileHash.encode())
-    conn.send(sz.to_bytes(4, byteorder="little", signed=False))
+    sock.send(fileHash.encode())
+    sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     for byte in fileBytes:
-        conn.send(byte)
+        sock.send(byte)
 
-def filesTransfer(sock, connectorHash):    
+def filesTransfer(sock, connectorHash):
     # Retreive files available for sending
     folder = Path("./repository")
     if not folder.exists():
@@ -342,10 +360,6 @@ if __name__ == '__main__':
     # Set my address
     ip = check_output(['hostname', '-I']).decode().rstrip()
     MY_ADDR = '{}:{}'.format(ip,listeningPort)
-    print("My address as a hash:  " + getHashKey(MY_ADDR))
-
-
-    print("My key: {}".format(getHashKey(MY_ADDR)))
 
 
     # Check for repository to store files
@@ -363,6 +377,9 @@ if __name__ == '__main__':
 
     listenThread = threading.Thread(target=listen, args=(listener,),daemon=False).start()
 
+    print("My address as a hash:  " + getHashKey(MY_ADDR))
+    print("My key: {}".format(getHashKey(MY_ADDR)))
+    printFingers()
 
     # Main run loop
     running = True
