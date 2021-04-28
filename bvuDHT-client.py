@@ -78,14 +78,17 @@ def sendFile(fileHash, fileBytes, sock):
     for byte in fileBytes:
         sock.send(byte)
 
-def recvFiles(numFiles, sock):
+def recvFiles(numFiles, sock, writeTo):
     for i in range(numFiles):
         key = recvAll(sock, 40)
         key = key.decode()
         sz = recvAll(sock, 4)
         sz = int.from_bytes(sz, byteorder="little", signed=False)
         data = recvAll(sock, sz)
-        path = Path('./repository/' + key)
+        if writeTo == "local":
+            path = Path('./' + key)
+        else:
+            path = Path('./repository/' + key)
         with open(path, 'wb') as outf:
             outf.write(data)
 
@@ -216,6 +219,18 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else:
             sock.send("F".encode())
+    elif code == "GETV":
+        key = recvAll(sock, 40).decode()
+        closest = closestToKey(key)
+        if closest == MY_ADDR:
+            if containedLocal(key) == True:
+                fileBytes = readFile(key,"")
+                sendFile(key, fileBytes, sock)
+            else:
+                sock.send("F".encode())
+        else:
+            sock.send("F".encode())
+
     else:
         print("Got something else in handleRequests")
 
