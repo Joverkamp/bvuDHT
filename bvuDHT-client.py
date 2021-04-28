@@ -203,26 +203,25 @@ def getFingerOffsets(MY_ADDR):
     return offsetList
 
 
-def setFingers():
+def setFingers(Addr):
     global FINGER_TABLE
     FINGER_TABLE = []
     offsets = getFingerOffsets(MY_ADDR)
     for finger in offsets:
-        askAddr = MY_ADDR
-        recvAddr = "1"
-        while askAddr != recvAddr:
+        askAddr = Addr
+        recvAddress = "1"
+        while askAddr != recvAddress:
             askAddrSplit = askAddr.split(":")
             clopSock = socket(AF_INET, SOCK_STREAM)
             clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
             clopSock.send("CLOP".encode())
-            clopSock.send(key.encode())
-            recvAddr = recvAddr(clopSock)
-        FINGER_TABLE.append((finger, recvAddr))
+            clopSock.send(finger.encode())
+            recvAddress = recvAddr(clopSock)
+        FINGER_TABLE.append((finger, recvAddress))
     FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
     FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
     FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
     FINGER_TABLE.sort()
-
 
 
 # Finds out who we know that is closest to the key
@@ -230,7 +229,6 @@ def closestToKey(key):
     for i in range(len(FINGER_TABLE) - 1):
         if key > FINGER_TABLE[i][0] and key < FINGER_TABLE[i+1][0]:
             return FINGER_TABLE[i][1]
-    print(FINGER_TABLE)
     return FINGER_TABLE[-1][1]
 
 
@@ -273,15 +271,15 @@ def contains(searchString):
         print("File {} exists.".format(searchString))
     else:
         askAddr = closestToKey(key)
-        recvAddr = "1"
-        while askAddr != recvAddr:
+        recvAddress = "1"
+        while askAddr != recvAddress:
             askAddrSplit = askAddr.split(":")
             clopSock = socket(AF_INET, SOCK_STREAM)
             clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
             clopSock.send("CLOP".encode())
             clopSock.send(key.encode())
-            recvAddr = recvAddr(clopSock)
-        if askAddr == recvAddr:
+            recvAddress = recvAddr(clopSock)
+        if askAddr == recvAddress:
             askAddrSplit = askAddr.split(":")
             contSock = socket(AF_INET, SOCK_STREAM)
             contSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
@@ -335,7 +333,7 @@ def joinSystem(IP, port):
         # Set pred and succ addr and fingers
         PRED_ADDR = "{}:{}".format(IP, port)
         SUCC_ADDR = recvAddr(joinSock)
-        setFingers()
+        setFingers(SUCC_ADDR)
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
