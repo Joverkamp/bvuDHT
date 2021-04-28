@@ -10,9 +10,13 @@ import os
 ###
 '''                             #####
 MAKE SURE TO DO THREAD LOCKING  #####
-                                #####
+
+Update finger table when you get a false and when 
+you get a prup request.
+#####
 '''
 ###
+
 
 
 # Global variables we want to keep track of
@@ -104,7 +108,7 @@ def filesTransfer(sock, connectorHash):
     sz = len(filesToSend)
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     for fileHash in filesToSend:
-        fileBytes = readFile(fileHash)
+        fileBytes = readFile(fileHash, "")
         sendFile(fileHash, fileBytes, sock)
 
     return filesToSend
@@ -256,6 +260,10 @@ def containedLocal(key):
 
 # Stores a file in the DHT
 def insert(searchString):
+    fileKeys = os.listdir('.')    
+    if searchString not in filekeys:
+        print("You do not own that file.")
+        return 
     key = getHashKey(searchString)
     storeAddr = closestToKey(key)
     if storeAddr == MY_ADDR:
@@ -263,9 +271,24 @@ def insert(searchString):
         print("Storing {} locally.".format(searchString))
         shutil.copy(searchString, 'repository/{}'.format(key))
     else:
-        pass
         closest = closestNow(storeAddr,key)
         closest = closest.split(":")
+        instSock = socket(AF_INET, SOCK_STREAM)
+        instSock.connect( (closest[0], int(closest[1])))
+        instSock.send("INST".encode())
+        instSock.send(key.encode())
+        TF = recvAll(instSock, 1).decode()
+        if TF == "F":
+            insert(searchString)
+        else:
+            fileBytes = readFile(key, "local")
+            sendFile(key, fileBytes, instSock)
+            TF = recvAll(instSock, 1).decode()
+            if TF == "T":
+                instSock.close()
+                print("File {} successfully inserted.".format(searchString))
+            else:
+                insert(searchString)
 
 # Removes a file from teh DHT if it's there
 def remove(searchString):
@@ -402,6 +425,7 @@ def joinSystem(IP, port):
 def getMyFileKeys():
     fileKeys = os.listdir('./repository')    
     return fileKeys
+
 
 
 # Function that prints out all available ways to use the system
