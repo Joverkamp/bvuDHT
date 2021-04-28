@@ -59,9 +59,12 @@ def sendAddr(addr, sock):
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     sock.send(addr.encode())
 
-def readFile(fileHash):
+def readFile(fileHash, readFrom):
+    if readFrom == "local":
+        f = open("{}".format(fileHash), "rb")
+    else:
+        f = open("repository/{}".format(fileHash), "rb")
     fileBytes = []
-    f = open("repository/{}".format(fileHash), "rb")
     byte = f.read(1)
     while byte:
         fileBytes.append(byte)
@@ -74,6 +77,18 @@ def sendFile(fileHash, fileBytes, sock):
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     for byte in fileBytes:
         sock.send(byte)
+
+def recvFiles(numFiles, sock):
+    for i in range(numFiles):
+        key = recvAll(sock, 40)
+        key = key.decode()
+        sz = recvAll(sock, 4)
+        sz = int.from_bytes(sz, byteorder="little", signed=False)
+        data = recvAll(sock, sz)
+        path = Path('./repository/' + key)
+        with open(path, 'wb') as outf:
+            outf.write(data)
+
 
 def deleteFiles(toDelete):
     for f in toDelete:
@@ -180,6 +195,8 @@ def handleRequests(connInfo):
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
+            sock.send("T".encode())
+            recvFiles(1, sock) 
             sock.send("T".encode())
         else:
             sock.send("F".encode())
@@ -351,19 +368,6 @@ def startNewSystem():
     for i in range(3):
         FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
     FINGER_TABLE.sort()
-
-
-def recvFiles(numFiles, sock):
-    for i in range(numFiles):
-        key = recvAll(sock, 40)
-        key = key.decode()
-        sz = recvAll(sock, 4)
-        sz = int.from_bytes(sz, byteorder="little", signed=False)
-        data = recvAll(sock, sz)
-        path = Path('./repository/' + key)
-        with open(path, 'wb') as outf:
-            outf.write(data)
-
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
