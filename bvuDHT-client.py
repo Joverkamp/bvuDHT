@@ -292,7 +292,7 @@ def contains(searchString):
             if TF == "F":
                 print("File {} NOT found.".format(searchString))
             else:
-                print("File {} found.").format(searchString)
+                print("File {} found.".format(searchString))
 
 def disconnect():
     if MY_ADDR == SUCC_ADDR:
