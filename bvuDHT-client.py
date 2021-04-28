@@ -172,6 +172,14 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else: 
             sock.send("F".encode())
+    elif code == "INST":
+        key = recvAll(sock, 40).decode()
+        closest = closestToKey(key)
+        if closest == MY_ADDR:
+            sock.send("T".encode())
+        else:
+            sock.send("F".encode())
+
     else:
         print("Got something else in handleRequests")
 
