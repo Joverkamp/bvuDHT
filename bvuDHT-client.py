@@ -230,7 +230,6 @@ def closestToKey(key):
     for i in range(len(FINGER_TABLE) - 1):
         if key > FINGER_TABLE[i][0] and key < FINGER_TABLE[i+1][0]:
             return FINGER_TABLE[i][1]
-    print(FINGER_TABLE)
     return FINGER_TABLE[-1][1]
 
 
