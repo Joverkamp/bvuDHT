@@ -314,14 +314,33 @@ def remove(searchString):
         os.remove("repository/"+ key)
         print("Removing {} locally.".format(searchString))
     else:
-        pass
-        #TODO Add network protocal here
+        if contains(searchString):
+            storeAddr = closestToKey(key)
+            closest = closestNow(storeAddr,key)
+            closest = closest.split(":")
+            rmveSock = socket(AF_INET, SOCK_STREAM)
+            rmveSock.connect( (closest[0], int(closest[1])))
+            rmveSock.send("RMVE".encode())
+            rmveSock.send(key.encode())
+            TF = recvAll(rmveSock, 1).decode()
+            if TF == "F":
+                remove(searchString)
+            else:
+                TF = recvAll(rmveSock, 1).decode()
+                if TF == "F":
+                    print("File {} is already gone.".format(searchString))
+                else:
+                    print("File {} deleted.".format(searchString))
+        else:
+            print("That file does not exist within the system.")
+
 
 # Prints if the file is found or not
 def contains(searchString):
     key = getHashKey(searchString)
     if containedLocal(key) == True:
         print("File {} exists.".format(searchString))
+        return True
     else:
         askAddr = closestToKey(key)
         recvAddress = "1"
@@ -344,8 +363,10 @@ def contains(searchString):
             TF = recvAll(contSock, 1).decode()
             if TF == "F":
                 print("File {} NOT found.".format(searchString))
+                return False
             else:
                 print("File {} found.".format(searchString))
+                return True
 
 def disconnect():
     if MY_ADDR == SUCC_ADDR:
@@ -438,6 +459,7 @@ def help():
     print('contains <file-name>')
     print('insert <file-name>')
     print('remove <file-name>')
+    print('get <file-name>')
     print('disconnect')
     print('help')
 
@@ -505,3 +527,5 @@ if __name__ == '__main__':
                 remove(fileName)
             elif command == "contains":
                 contains(fileName)
+            elif command == "get":
+                get(filename)
