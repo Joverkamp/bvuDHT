@@ -223,7 +223,9 @@ def handleRequests(connInfo):
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
+            sock.send("T".encode())
             if containedLocal(key) == True:
+                sock.send("T".encode())
                 fileBytes = readFile(key,"")
                 sendFile(key, fileBytes, sock)
             else:
