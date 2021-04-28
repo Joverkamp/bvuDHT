@@ -278,7 +278,7 @@ def containedLocal(key):
 # Stores a file in the DHT
 def insert(searchString):
     fileKeys = os.listdir('.')    
-    if searchString not in filekeys:
+    if searchString not in fileKeys:
         print("You do not own that file.")
         return 
     key = getHashKey(searchString)
@@ -298,7 +298,7 @@ def insert(searchString):
         if TF == "F":
             insert(searchString)
         else:
-            fileBytes = readFile(key, "local")
+            fileBytes = readFile(searchString, "local")
             sendFile(key, fileBytes, instSock)
             TF = recvAll(instSock, 1).decode()
             if TF == "T":
