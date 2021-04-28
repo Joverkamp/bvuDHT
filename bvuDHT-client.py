@@ -7,6 +7,13 @@ from pathlib import Path
 import threading
 import os
 
+###
+'''                             #####
+MAKE SURE TO DO THREAD LOCKING  #####
+                                #####
+'''
+###
+
 
 # Global variables we want to keep track of
 MY_ADDR = ''
@@ -194,25 +201,10 @@ def containedLocal(searchString):
         return False
 
 
-# Finds who is the closest peer to the string we want to search by
-def closestPeer(searchString):
-    key = getHashKey(searchString)
-    closest = closestToKey(key)
-    if closest == MY_ADDR:
-        return closest
-    else:
-        #network protocol
-        #send clop and key to closest
-        #get back node address
-        #if closets == node address return nodeaddress
-        #else repeat
-        pass
-
-
 # Stores a file in the DHT
 def insert(searchString):
     key = getHashKey(searchString)
-    storeAddr = closestPeer(searchString)
+    storeAddr = closestToKey(key)
     if storeAddr == MY_ADDR:
         #store locally
         print("Storing {} locally.".format(searchString))
@@ -235,14 +227,33 @@ def remove(searchString):
 
 # Prints if the file is found or not
 def contains(searchString):
-    if containedLocal(searchString) == True:
+    key = getHashKey(searchString)
+    if containedLocal(key) == True:
         print("File {} exists.".format(searchString))
-    elif True == False:
-        # TODO Network stuff
-        pass
     else:
-        print("File {} NOT found.".format(searchString))
-
+        askAddr = closestToKey(key)
+        recvAddr = "1"
+        while askAddr != recvAddr:
+            askAddrSplit = askAddr.split(":")
+            clopSock = socket(AF_INET, SOCK_STREAM)
+            clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
+            clopSock.send("CLOP".encode())
+            clopSock.send(key.encode())
+            recvAddr = recvAddr(clopSock)
+        if askAddr == recvAddr:
+            askAddrSplit = askAddr.split(":")
+            contSock = socket(AF_INET, SOCK_STREAM)
+            contSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
+            contSock.send("CONT".encode())
+            contSock.send(key.encode())
+            TF = recvAll(contSock, 1).decode()
+            if TF == "F":
+                contains(searchString)
+            TF = recvAll(contSock, 1).decode()
+            if TF == "F":
+                print("File {} NOT found.".format(searchString))
+            else:
+                print("File {} found.").format(searchString)
 
 def disconnect():
     if MY_ADDR == SUCC_ADDR:
