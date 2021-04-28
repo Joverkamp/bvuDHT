@@ -201,7 +201,7 @@ def handleRequests(connInfo):
         closest = closestToKey(key)
         if closest == MY_ADDR:
             sock.send("T".encode())
-            recvFiles(1, sock) 
+            recvFiles(1, sock, "") 
             sock.send("T".encode())
         else:
             sock.send("F".encode())
@@ -322,6 +322,32 @@ def insert(searchString):
             else:
                 insert(searchString)
 
+
+# Grabs the file and 
+def get(searchString):
+    key = getHashKey(searchString)
+    if containedLocal(key) == True:
+        print("Copied file {} from repository to your local directory.".format(searchString))
+        shutil.copy('repository/{}'.format(key), searchString)
+    else:
+        if contains(searchString):
+            storeAddr = closestToKey(key)
+            closest = closestNow(storeAddr,key)
+            closest = closest.split(":")
+            getSock = socket(AF_INET, SOCK_STREAM)
+            getSock.connect( (closest[0], int(closest[1])))
+            getSock.send("GETV".encode())
+            getSock.send(key.encode())
+            TF = recvAll(getSock, 1).decode()
+            if TF == "F":
+                get(searchString)
+            else:
+                TF = recvAll(getSock, 1).decode()
+                if TF == "F":
+                    print("That file, {} does not exist anymore.".format(searchString))
+                else:
+                    recvFiles(1, getSock, "local")
+
 # Removes a file from teh DHT if it's there
 def remove(searchString):
     key = getHashKey(searchString)
@@ -425,7 +451,7 @@ def joinSystem(IP, port):
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
-        recvFiles(numFiles, joinSock)
+        recvFiles(numFiles, joinSock, "")
         # Do Predecessor update stuff
         succ_list = SUCC_ADDR.split(":")
         newSuccSock = socket(AF_INET, SOCK_STREAM)
