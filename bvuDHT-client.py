@@ -31,7 +31,7 @@ NUM_FINGERS = 4
 # closeset to offests of the circle's size divided NUM_FINGERS.
 FINGER_TABLE = []
 # A list of commands that the user is allowed to use
-COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help']
+COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help', 'get']
 # Port we are listening on this will get overwritten
 listeningPort = 1111
 
@@ -338,14 +338,16 @@ def insert(searchString):
                 insert(searchString)
 
 
-# Grabs the file and 
-def get(searchString):
+# Grabs the file and stores it in your local repository 
+def getv(searchString):
+    print("entered function")
     key = getHashKey(searchString)
     if containedLocal(key) == True:
         print("Copied file {} from repository to your local directory.".format(searchString))
-        shutil.copy('repository/{}'.format(key), searchString)
+        shutil.copy('repository/{}'.format(key), key)
     else:
         if contains(searchString):
+            print("it is a file")
             storeAddr = closestToKey(key)
             closest = closestNow(storeAddr,key)
             closest = closest.split(":")
@@ -362,6 +364,9 @@ def get(searchString):
                     print("That file, {} does not exist anymore.".format(searchString))
                 else:
                     recvFiles(1, getSock, "local")
+                    print("Received {}.".format(searchString))
+        else:
+            print("That file does not exist.")
 
 # Removes a file from teh DHT if it's there
 def remove(searchString):
@@ -584,4 +589,4 @@ if __name__ == '__main__':
             elif command == "contains":
                 contains(fileName)
             elif command == "get":
-                get(filename)
+                getv(fileName)
