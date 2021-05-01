@@ -537,7 +537,9 @@ def joinSystem(IP, port):
         # Set pred and succ addr and fingers
         PRED_ADDR = "{}:{}".format(IP, port)
         SUCC_ADDR = recvAddr(joinSock)
-        setFingers(SUCC_ADDR)
+        updateFingers(PRED_ADDR)
+        updateFingers(SUCC_ADDR)
+        updateFingerTable()
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
