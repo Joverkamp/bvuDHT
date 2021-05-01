@@ -40,6 +40,9 @@ def printFingers():
     myKey = getHashKey(MY_ADDR)
     predKey = getHashKey(PRED_ADDR)
     succKey = getHashKey(SUCC_ADDR)
+    print("--------------------------")
+    print("-      FINGER TABLE      -")
+    print("--------------------------")
     print("My Address")
     print("   {}".format(MY_ADDR))
     print("   {}".format(myKey))
@@ -49,9 +52,9 @@ def printFingers():
     print("Succ Address")
     print("   {}".format(SUCC_ADDR))
     print("   {}".format(succKey))
-    for finger in FINGER_TABLE:
+    for i, finger in enumerate(FINGER_TABLE):
         if finger[0] != myKey and finger[0] != predKey and finger[0] != succKey:
-            print("Finger Address")
+            print("Finger {}".format(i)
             print("   {}".format(finger[1]))
             print("   {}".format(finger[0]))           
 
@@ -188,10 +191,8 @@ def handleRequests(connInfo):
         PRED_ADDR = newPred
         if SUCC_ADDR == MY_ADDR:
             SUCC_ADDR = PRED_ADDR         
-        ## MAY need to do update fingers and update finger table here too
-        ##
-        ##
-        ##
+        updateFingers(PRED_ADDR)
+        updateFingerTable()
         sock.send("T".encode())
     elif code == "CLOP":
         print("CLOP REQUEST...")
@@ -343,17 +344,17 @@ def closestNow(Addr, key):
                                   
                                   
 def setFingers(Addr):             
-    global FINGER_TABLE           
-    FINGER_TABLE = []
+    global FINGERS         
+    FINGERS = []
     offsets = getFingerOffsets(MY_ADDR)
     for finger in offsets:
         recvAddress = closestNow(Addr, finger)
-        FINGER_TABLE.append((finger, recvAddress))
-    FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
-    FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
-    FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
-    FINGER_TABLE.sort()
-
+        FINGERS.append((finger, recvAddress))
+#    FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
+#    FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
+#    FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
+#    FINGER_TABLE.sort()
+    updateFingerTable()
 
 # Finds out who we know that is closest to the key
 def closestToKey(key):
@@ -525,7 +526,7 @@ def startNewSystem():
 def joinSystem(IP, port):
     global SUCC_ADDR
     global PRED_ADDR
-    global FINGER_TABLE
+    global FINGERS
     joinSock = socket(AF_INET, SOCK_STREAM)
     joinSock.connect( (IP, port))
     # Basic start of connect where we send conn and addr
@@ -542,11 +543,14 @@ def joinSystem(IP, port):
         FINGER_TABLE = []
         offsets = getFingerOffsets(MY_ADDR)
         for finger in offsets:
-            FINGER_TABLE.append((finger, MT_ADDR))
+            FINGERS.append((finger, MY_ADDR))
 
         updateFingers(PRED_ADDR)
         updateFingers(SUCC_ADDR)
         updateFingerTable()
+
+        setFingers()
+
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
