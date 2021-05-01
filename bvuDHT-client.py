@@ -237,6 +237,47 @@ def handleRequests(connInfo):
         print("Got something else in handleRequests")
 
 
+def updateFingerTable(peerAddr):
+    global FINGERS
+    peerKey = getHashkey(peerAddr)
+    for i in range(len(FINGERS)):
+        currFingKey = getHashKey(FINGERS[i][1])
+        # i = 1 and wrap around
+        if i == 1 and FINGERS[-1][0] > FINGERS[i][0]:
+            # is current finger value in keyspace
+            if currFingKey > FINGERS[-1][0] or currFingKey < FINGERS[i][0]:
+                if currFingKey > FINGERS[-1][0]:
+                    if peerKey < FINGERS[i][0] or peerKey > currFingKey:
+                        FINGERS[i][1] = peerAddr 
+                if peerKey > currFingKey and peerKey < FINGERS[i][0]:
+                    FINGERS[i][1] = peerAddr
+            if peerKey > currFingKey or peerKey < FINGERS[i][0]:
+                FINGERS[i][1] = peerAddr
+        # i != 1 and wrap around        
+        elif i > 1 and FINGES[i-1][0] > FINGERS[i][0]:
+            # is current finger value in keyspace
+            if currFingKey > FINGERS[i-1][0] or currFingKey < FINGERS[i][0]:
+                if currFingKey > FINGERS[i-1][0]:
+                    if peerKey < FINGERS[i][0] or peerKey > currFingKey:
+                        FINGERS[i][1] = peerAddr
+                if peerKey > currFingKey and peerKey < FINGERS[i][0]:
+                    FINGERS[i][1] = peerAddr
+            if peerKey > currFingKey or peerKey < FINGERS[i][0]:
+                FINGERS[i][1] = peerAddr
+        # any i no wrap around
+        else:
+            # is current finger value in keyspace
+            if currFingKey < FINGERS[i][0] and currFingerKey > FINGERS[i-1][0]:
+                if peerKey < FINGERS[i][0] and peerKey > currFingerKey:
+                    FINGERS[i][1] = peerAddr
+            else:
+                if currFingKey > FINGERS[i][0]:
+                    if peerKey > currFingKey or peerKey < FINGERS[i][0]:
+                        FINGERS[i][1] = peerAddr
+                else:
+                    if peerKey > currFingKey and peerKey < FINGERS[i][0]:
+                        FINGERS[i][1] = peerAddr
+
 # Returns us a hashed value of the string 
 def getHashKey(value):
     key = hashlib.sha1(value.encode()).hexdigest()
