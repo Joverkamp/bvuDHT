@@ -52,11 +52,13 @@ def printFingers():
     print("Succ Address")
     print("   {}".format(SUCC_ADDR))
     print("   {}".format(succKey))
-    for i, finger in enumerate(FINGER_TABLE):
+    i = 0
+    for finger in FINGER_TABLE:
         if finger[0] != myKey and finger[0] != predKey and finger[0] != succKey:
-            print("Finger {}".format(i)
+            print("Finger {}".format(i))
             print("   {}".format(finger[1]))
-            print("   {}".format(finger[0]))           
+            print("   {}".format(finger[0]))
+            i = i+1
 
 def sendAddr(addr, sock):
     sz = len(addr)
@@ -549,7 +551,7 @@ def joinSystem(IP, port):
         updateFingers(SUCC_ADDR)
         updateFingerTable()
 
-        setFingers()
+        setFingers(PRED_ADDR)
 
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
