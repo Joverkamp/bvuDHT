@@ -147,6 +147,10 @@ def recvAll(sock, numBytes):
     data = b''
     while (len(data) < numBytes):
         data += sock.recv(numBytes - len(data))
+        print(data.decode() + " : -----------------------")
+        if len(data) == 0:
+            print("breaking in recvAll this is probably bad")
+            break
     return data
 
 
@@ -323,13 +327,21 @@ def getFingerOffsets(MY_ADDR):
         if key + (offset * (i+1)) > maxHash:
             # For the wrap around here, I just subtracted the max
             # from the larger than max number
-            offsetList.append( hex((key + (offset * (i+1))) - maxHash)[2:] )
+            off = hex((key + (offset * (i+1))) - maxHash)[2:]
+            if len(off) < 40:
+                off = off + "0"
+            offsetList.append(off)
         else:
-            offsetList.append( hex(key + (offset * (i+1)))[2:] )
+            off = hex(key + (offset * (i+1)))[2:]
+            if len(off) < 40:
+                off = off + "0"
+            offsetList.append(off)
     return offsetList
 
 
 def closestNow(Addr, key):
+    if Addr == MY_ADDR:
+        return Addr
     askAddr = Addr
     recvAddress = "1"
     while askAddr != recvAddress:
@@ -339,6 +351,7 @@ def closestNow(Addr, key):
         clopSock.send("CLOP".encode())
         clopSock.send(key.encode())
         recvAddress = recvAddr(clopSock)
+        clopSock.close()
         if recvAddress == askAddr:
             return recvAddress   
         askAddr = recvAddress
@@ -352,10 +365,6 @@ def setFingers(Addr):
     for finger in offsets:
         recvAddress = closestNow(Addr, finger)
         FINGERS.append((finger, recvAddress))
-#    FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
-#    FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
-#    FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
-#    FINGER_TABLE.sort()
     updateFingerTable()
 
 # Finds out who we know that is closest to the key
@@ -368,8 +377,6 @@ def closestToKey(key):
 
 # Helper function that tells us if we are the owner of the file
 def containedLocal(key):
-    #fileKey = getHashKey(searchString)
-    #if MY_ADDR == SUCC_ADDR:
     if key in getMyFileKeys():
         return True
     return False
