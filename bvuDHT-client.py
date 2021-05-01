@@ -525,6 +525,7 @@ def startNewSystem():
 def joinSystem(IP, port):
     global SUCC_ADDR
     global PRED_ADDR
+    global FINGER_TABLE
     joinSock = socket(AF_INET, SOCK_STREAM)
     joinSock.connect( (IP, port))
     # Basic start of connect where we send conn and addr
@@ -537,6 +538,12 @@ def joinSystem(IP, port):
         # Set pred and succ addr and fingers
         PRED_ADDR = "{}:{}".format(IP, port)
         SUCC_ADDR = recvAddr(joinSock)
+        
+        FINGER_TABLE = []
+        offsets = getFingerOffsets(MY_ADDR)
+        for finger in offsets:
+            FINGER_TABLE.append((finger, MT_ADDR))
+
         updateFingers(PRED_ADDR)
         updateFingers(SUCC_ADDR)
         updateFingerTable()
