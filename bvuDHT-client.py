@@ -176,12 +176,8 @@ def handleRequests(connInfo):
             toDelete = filesTransfer(sock, connectorHash)
             confirm = recvAll(sock, 1).decode()
             if confirm == "T":
-                print("Before \n ---------------------------")
-                printFingers()
                 updateFingers(connectorAddr)
                 updateFingerTable()
-                print("After \n ---------------------------")
-                printFingers()
                 deleteFiles(toDelete)
         else:
             sock.send("F".encode())
@@ -191,10 +187,14 @@ def handleRequests(connInfo):
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
         if SUCC_ADDR == MY_ADDR:
-            SUCC_ADDR = PRED_ADDR
-        printFingers()##################################################
+            SUCC_ADDR = PRED_ADDR         
+        ## MAY need to do update fingers and update finger table here too
+        ##
+        ##
+        ##
         sock.send("T".encode())
     elif code == "CLOP":
+        print("CLOP REQUEST...")
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         sendAddr(closest, sock)
@@ -262,26 +262,26 @@ def updateFingers(peerAddr):
     for i in range(len(FINGERS)):
         currFingKey = getHashKey(FINGERS[i][1])
         # i = 1 and wrap around
-        if i == 1 and FINGERS[-1][0] > FINGERS[i][0]:
+        if i == 0 and FINGERS[-1][0] > FINGERS[i][0]:
             # is current finger value in keyspace
             if currFingKey > FINGERS[-1][0] or currFingKey < FINGERS[i][0]:
                 if currFingKey > FINGERS[-1][0]:
                     if peerKey < FINGERS[i][0] or peerKey > currFingKey:
                         FINGERS[i] = (FINGERS[i][0], peerAddr)
-                if peerKey > currFingKey and peerKey < FINGERS[i][0]:
+                elif peerKey > currFingKey and peerKey < FINGERS[i][0]:
                     FINGERS[i] = (FINGERS[i][0], peerAddr)
-            if peerKey > currFingKey or peerKey < FINGERS[i][0]:
+            elif peerKey > currFingKey or peerKey < FINGERS[i][0]:
                 FINGERS[i] = (FINGERS[i][0], peerAddr)
         # i != 1 and wrap around        
-        elif i > 1 and FINGERS[i-1][0] > FINGERS[i][0]:
+        elif i > 0 and FINGERS[i-1][0] > FINGERS[i][0]:
             # is current finger value in keyspace
             if currFingKey > FINGERS[i-1][0] or currFingKey < FINGERS[i][0]:
                 if currFingKey > FINGERS[i-1][0]:
                     if peerKey < FINGERS[i][0] or peerKey > currFingKey:
                         FINGERS[i] = (FINGERS[i][0], peerAddr)
-                if peerKey > currFingKey and peerKey < FINGERS[i][0]:
+                elif peerKey > currFingKey and peerKey < FINGERS[i][0]:
                     FINGERS[i] = (FINGERS[i][0], peerAddr)
-            if peerKey > currFingKey or peerKey < FINGERS[i][0]:
+            elif peerKey > currFingKey or peerKey < FINGERS[i][0]:
                 FINGERS[i] = (FINGERS[i][0], peerAddr)
         # any i no wrap around
         else:
@@ -335,11 +335,14 @@ def closestNow(Addr, key):
         clopSock.send("CLOP".encode())
         clopSock.send(key.encode())
         recvAddress = recvAddr(clopSock)
-    return recvAddress
-
-
-def setFingers(Addr):
-    global FINGER_TABLE
+        if recvAddress == askAddr:
+            return recvAddress   
+        askAddr = recvAddress
+    return recvAddress            
+                                  
+                                  
+def setFingers(Addr):             
+    global FINGER_TABLE           
     FINGER_TABLE = []
     offsets = getFingerOffsets(MY_ADDR)
     for finger in offsets:
