@@ -30,6 +30,7 @@ NUM_FINGERS = 4
 # our successor's address, and NUM_FINGERS addresses of people 
 # closeset to offests of the circle's size divided NUM_FINGERS.
 FINGER_TABLE = []
+FINGERS = []
 # A list of commands that the user is allowed to use
 COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help', 'get']
 # Port we are listening on this will get overwritten
@@ -163,6 +164,8 @@ def listen(listener):
 def handleRequests(connInfo):
     sock, connAddr = connInfo
     code  = recvAll(sock, 4).decode()
+    global PRED_ADDR
+    global SUCC_ADDR
     #Protocol for incoming CONN
     if code == "CONN":
         connectorAddr = recvAddr(sock)
@@ -173,15 +176,22 @@ def handleRequests(connInfo):
             toDelete = filesTransfer(sock, connectorHash)
             confirm = recvAll(sock, 1).decode()
             if confirm == "T":
+                print("Before \n ---------------------------")
+                printFingers()
+                updateFingers(connectorAddr)
+                updateFingerTable()
+                print("After \n ---------------------------")
+                printFingers()
                 deleteFiles(toDelete)
         else:
             sock.send("F".encode())
             sock.close()
     elif code == "PRUP":
         print("Got prup req")
-        global PRED_ADDR
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
+        if SUCC_ADDR == MY_ADDR:
+            SUCC_ADDR = PRED_ADDR
         printFingers()##################################################
         sock.send("T".encode())
     elif code == "CLOP":
@@ -237,9 +247,18 @@ def handleRequests(connInfo):
         print("Got something else in handleRequests")
 
 
-def updateFingerTable(peerAddr):
+def updateFingerTable():
+    global FINGER_TABLE
+    FINGER_TABLE = FINGERS
+    FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
+    FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
+    FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
+    FINGER_TABLE.sort()
+
+
+def updateFingers(peerAddr):
     global FINGERS
-    peerKey = getHashkey(peerAddr)
+    peerKey = getHashKey(peerAddr)
     for i in range(len(FINGERS)):
         currFingKey = getHashKey(FINGERS[i][1])
         # i = 1 and wrap around
@@ -248,35 +267,36 @@ def updateFingerTable(peerAddr):
             if currFingKey > FINGERS[-1][0] or currFingKey < FINGERS[i][0]:
                 if currFingKey > FINGERS[-1][0]:
                     if peerKey < FINGERS[i][0] or peerKey > currFingKey:
-                        FINGERS[i][1] = peerAddr 
+                        FINGERS[i] = (FINGERS[i][0], peerAddr)
                 if peerKey > currFingKey and peerKey < FINGERS[i][0]:
-                    FINGERS[i][1] = peerAddr
+                    FINGERS[i] = (FINGERS[i][0], peerAddr)
             if peerKey > currFingKey or peerKey < FINGERS[i][0]:
-                FINGERS[i][1] = peerAddr
+                FINGERS[i] = (FINGERS[i][0], peerAddr)
         # i != 1 and wrap around        
-        elif i > 1 and FINGES[i-1][0] > FINGERS[i][0]:
+        elif i > 1 and FINGERS[i-1][0] > FINGERS[i][0]:
             # is current finger value in keyspace
             if currFingKey > FINGERS[i-1][0] or currFingKey < FINGERS[i][0]:
                 if currFingKey > FINGERS[i-1][0]:
                     if peerKey < FINGERS[i][0] or peerKey > currFingKey:
-                        FINGERS[i][1] = peerAddr
+                        FINGERS[i] = (FINGERS[i][0], peerAddr)
                 if peerKey > currFingKey and peerKey < FINGERS[i][0]:
-                    FINGERS[i][1] = peerAddr
+                    FINGERS[i] = (FINGERS[i][0], peerAddr)
             if peerKey > currFingKey or peerKey < FINGERS[i][0]:
-                FINGERS[i][1] = peerAddr
+                FINGERS[i] = (FINGERS[i][0], peerAddr)
         # any i no wrap around
         else:
             # is current finger value in keyspace
-            if currFingKey < FINGERS[i][0] and currFingerKey > FINGERS[i-1][0]:
-                if peerKey < FINGERS[i][0] and peerKey > currFingerKey:
-                    FINGERS[i][1] = peerAddr
+            if currFingKey < FINGERS[i][0] and currFingKey > FINGERS[i-1][0]:
+                if peerKey < FINGERS[i][0] and peerKey > currFingKey:
+                    FINGERS[i] = (FINGERS[i][0], peerAddr)
             else:
                 if currFingKey > FINGERS[i][0]:
                     if peerKey > currFingKey or peerKey < FINGERS[i][0]:
-                        FINGERS[i][1] = peerAddr
+                        FINGERS[i] = (FINGERS[i][0], peerAddr)
                 else:
                     if peerKey > currFingKey and peerKey < FINGERS[i][0]:
-                        FINGERS[i][1] = peerAddr
+                        FINGERS[i] = (FINGERS[i][0], peerAddr)
+
 
 # Returns us a hashed value of the string 
 def getHashKey(value):
@@ -485,14 +505,17 @@ def startNewSystem():
     global SUCC_ADDR
     global PRED_ADDR
     global FINGER_TABLE
+    global FINGERS
     SUCC_ADDR = MY_ADDR
     PRED_ADDR = MY_ADDR
     fingers = getFingerOffsets(MY_ADDR)
     for i in range(NUM_FINGERS):
         FINGER_TABLE.append((fingers[i], MY_ADDR))
+        FINGERS.append((fingers[i], MY_ADDR))
     for i in range(3):
         FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
     FINGER_TABLE.sort()
+    FINGERS.sort()
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
