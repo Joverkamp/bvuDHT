@@ -640,7 +640,11 @@ if __name__ == '__main__':
     folder = Path('./repository')
     if not folder.exists():
         folder.mkdir(parents=True, exist_ok=True)
-
+    else:
+        shutil.rmtree(folder)
+        folder.mkdir(parents=True, exist_ok=True)
+        
+    
     if len(argv) == 1:
         startNewSystem()
     else:
