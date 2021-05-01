@@ -254,6 +254,7 @@ def updateFingerTable():
     FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
     FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
     FINGER_TABLE.sort()
+    printFingers()
 
 
 def updateFingers(peerAddr):
