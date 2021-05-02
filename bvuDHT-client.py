@@ -7,7 +7,7 @@ from pathlib import Path
 import threading
 import os
 
-
+# Different lock so we don't overwrite any data
 connLock = threading.Lock()
 prupLock = threading.Lock()
 discLock = threading.Lock()
@@ -34,6 +34,7 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help', 'get']
 listeningPort = 1111
 
 
+# Function that helps to print out our finger table nicely
 def printFingers():
     myKey = getHashKey(MY_ADDR)
     predKey = getHashKey(PRED_ADDR)
@@ -58,6 +59,7 @@ def printFingers():
             print("   {}".format(finger[0]))
             i = i+1
 
+
 # Protocol for sending addresses
 # Send size and then address
 def sendAddr(addr, sock):
@@ -65,7 +67,8 @@ def sendAddr(addr, sock):
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     sock.send(addr.encode())
 
-# read a file given its hash(file name) and produce an array of bytes
+
+# Read a file given its hash(file name) and produce an array of bytes
 # readFrom specifies whether to read from your local files not in the DHT
 # if passed "local" or else read from the "repository dir
 def readFile(fileHash, readFrom):
@@ -80,7 +83,8 @@ def readFile(fileHash, readFrom):
         byte = f.read(1)
     return fileBytes
 
-# protocol for sending a file. Send number of bytes then then the key
+
+# Protocol for sending a file. Send number of bytes then then the key
 # and then each byte
 def sendFile(fileHash, fileBytes, sock):
     sz = len(fileBytes)
@@ -89,8 +93,9 @@ def sendFile(fileHash, fileBytes, sock):
     for byte in fileBytes:
         sock.send(byte)
 
-# receive a given number of files following our protocol. WriteTo specifies 
-#  whether to write locally or to our DHT repository
+
+# Receive a given number of files following our protocol. WriteTo specifies 
+# whether to write locally or to our DHT repository
 def recvFiles(numFiles, sock, writeTo):
     for i in range(numFiles):
         key = recvAll(sock, 40)
@@ -105,7 +110,8 @@ def recvFiles(numFiles, sock, writeTo):
         with open(path, 'wb') as outf:
             outf.write(data)
 
-# delete files from DHT repository given an array of file keys
+
+# Delete files from DHT repository given an array of file keys
 def deleteFiles(toDelete):
     for f in toDelete:
         try:
@@ -117,6 +123,7 @@ def deleteFiles(toDelete):
             return False
 
 
+# Function that handles the majority of transfering multiple files from one user to another
 def filesTransfer(sock, connectorHash, Type):
     # Retreive files available for sending
     folder = Path("./repository")
@@ -155,6 +162,7 @@ def filesTransfer(sock, connectorHash, Type):
 
     return filesToSend
 
+
 # Receiving bytes until bytes = numBytes
 def recvAll(sock, numBytes):
     data = b''
@@ -164,7 +172,8 @@ def recvAll(sock, numBytes):
             break
     return data
 
-# receive size of addr followed by the addr
+
+# Receive size of addr followed by the addr
 def recvAddr(sock):
     data = recvAll(sock, 4)
     addrSize = int.from_bytes(data, byteorder="little", signed=False)
@@ -181,6 +190,7 @@ def listen(listener):
         threading.Thread(target=handleRequests, args=(listener.accept(),),daemon=True).start()
 
 
+# Logic for all possible valid requests that we may receive
 def handleRequests(connInfo):
     sock, connAddr = connInfo
     code  = recvAll(sock, 4).decode()
@@ -296,8 +306,9 @@ def handleRequests(connInfo):
     else:
         pass
 
+
+# Helper function that does prup requests for us
 def prup(targetAddr, confirmSock):
-    print("In prup func")
     succ_list = targetAddr.split(":")
     newSuccSock = socket(AF_INET, SOCK_STREAM)
     newSuccSock.connect( (succ_list[0], int(succ_list[1])))
@@ -310,7 +321,6 @@ def prup(targetAddr, confirmSock):
     if TF == "T":
         # Send Final True to person you connected to in the beginning
         confirmSock.send("T".encode())
-        print("sent t")
         # Close both the sockets
         newSuccSock.close()
         confirmSock.close()
@@ -318,6 +328,7 @@ def prup(targetAddr, confirmSock):
     return False
 
 
+# Resets all the fingers and who we know to ourself
 def resetFingerTable():
     global FINGERS
     global PRED_ADDR
@@ -331,6 +342,7 @@ def resetFingerTable():
     updateFingerTable()
 
 
+# Removes one person from the finger table
 def removeFromFingerTable(addr):
     global FINGERS
     for i in range(len(FINGERS)):
@@ -339,7 +351,8 @@ def removeFromFingerTable(addr):
     updateFingerTable()
     
 
-
+# Updates our finger table relative to our known Fingers and our address, our
+# predcessors address, and our successors address
 def updateFingerTable():
     global FINGER_TABLE
     FINGER_TABLE = FINGERS
@@ -348,6 +361,7 @@ def updateFingerTable():
     FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
     FINGER_TABLE.sort()
     printFingers()
+
 
 # Algorithm for replacing items in your fingers
 # Walks through fingers and if the new peerAddr key is closer to 
@@ -428,6 +442,7 @@ def getFingerOffsets(MY_ADDR):
     return offsetList
 
 
+# Sends CLOP requests to see who owns the hash we send
 def closestNow(Addr, key):
     if Addr == MY_ADDR:
         return Addr
@@ -446,7 +461,9 @@ def closestNow(Addr, key):
         askAddr = recvAddress
     return recvAddress            
                                   
-                                  
+
+# Gets all of our offsets and calls closest now to figure our who is the 
+# closest to the offset of our finger table hash
 def setFingers(Addr):             
     global FINGERS         
     FINGERS = []
@@ -485,6 +502,7 @@ def insert(searchString):
         print("Storing {} locally.".format(searchString))
         shutil.copy(searchString, 'repository/{}'.format(key))
     else:
+        # Refer to protocol for what is happening here
         closest = closestNow(storeAddr,key)
         closest = closest.split(":")
         instSock = socket(AF_INET, SOCK_STREAM)
@@ -514,7 +532,7 @@ def getv(searchString):
         shutil.copy('repository/{}'.format(key), key)
     else:
         if contains(searchString):
-            print("it is a file")
+            print("It is a file")
             storeAddr = closestToKey(key)
             closest = closestNow(storeAddr,key)
             closest = closest.split(":")
@@ -564,7 +582,7 @@ def remove(searchString):
             print("That file does not exist within the system.")
 
 
-# Prints if the file is found or not
+# Prints if the file is found in the system or not
 def contains(searchString):
     key = getHashKey(searchString)
     if containedLocal(key) == True:
@@ -598,13 +616,12 @@ def contains(searchString):
                 return True
 
 
+# Removes you from the system and does all the necessary protocol if needed
 def disconnect():
-    # Disconnect fro it it's a one man system
+    # Disconnect if it's a one man system
     if MY_ADDR == SUCC_ADDR:
         print("Goodbye")
         exit(0)
-#    if SUCC_ADDR == PRED_ADDR:
-
     # Disconnect over the network
     else:
         # Get our hash key to be used as a dummy variable
@@ -659,7 +676,7 @@ def joinSystem(IP, port):
         # Set pred and succ addr and fingers
         PRED_ADDR = "{}:{}".format(IP, port)
         SUCC_ADDR = recvAddr(joinSock)
-        
+        # Set rest of finger table    
         FINGER_TABLE = []
         offsets = getFingerOffsets(MY_ADDR)
         for finger in offsets:
@@ -757,7 +774,7 @@ if __name__ == '__main__':
     print("My key: {}".format(getHashKey(MY_ADDR)))
     printFingers()
 
-    # Main run loop
+    # Main run loop that constantly takes in commands
     running = True
     help()
     while running:
