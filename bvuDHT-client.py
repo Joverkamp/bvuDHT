@@ -8,11 +8,14 @@ import threading
 import os
 
 # Different lock so we don't overwrite any data
+'''
 MY_ADDRLock = threading.Lock()
 SUCC_ADDRLock = threading.Lock()
 PRED_ADDRLock = threading.Lock()
 FINGERSLock = threading.Lock()
 FINGER_TABLELock = threading.Lock()
+'''
+printLock = threading.Lock()
 # Global variables we want to keep track of
 MY_ADDR = ''
 SUCC_ADDR = ''
@@ -281,7 +284,6 @@ def handleRequests(connInfo):
         if PRED_ADDR == SUCC_ADDR:
             sock.send("T".encode())
             resetFingerTable()
-            print("GETTING HERE")
         elif prup(newSucc, sock) == True:
             sock.send("T".encode())
             removeFromFingerTable(SUCC_ADDR)
@@ -344,7 +346,9 @@ def updateFingerTable():
     FINGER_TABLE.append((getHashKey(SUCC_ADDR), SUCC_ADDR))
     FINGER_TABLE.append((getHashKey(PRED_ADDR), PRED_ADDR))
     FINGER_TABLE.sort()
+    printLock.acquire()
     printFingers()
+    printLock.release()
 
 
 # Algorithm for replacing items in your fingers
@@ -757,7 +761,9 @@ if __name__ == '__main__':
 
     print("My address as a hash:  " + getHashKey(MY_ADDR))
     print("My key: {}".format(getHashKey(MY_ADDR)))
+    printLock.acquire()
     printFingers()
+    printLock.release()
 
     # Main run loop that constantly takes in commands
     running = True
