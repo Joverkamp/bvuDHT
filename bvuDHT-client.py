@@ -181,6 +181,7 @@ def filesTransfer(sock, connectorHash, Type):
 def recvAll(sock, numBytes):
     data = b''
     while (len(data) < numBytes):
+        print("____________________" + str(type(sock)))
         data += sock.recv(numBytes - len(data))
         if len(data) == 0:
             break
@@ -565,7 +566,7 @@ def getv(searchString):
                 if TF == "F":
                     print("That file, {} does not exist anymore.".format(searchString))
                 else:
-                    recvFile(1, getSock, "local")
+                    recvFile(getSock, key, "local")
                     print("Received {}.".format(searchString))
         else:
             print("That file does not exist.")
