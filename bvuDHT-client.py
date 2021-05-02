@@ -13,7 +13,14 @@ MAKE SURE TO DO THREAD LOCKING  #####
 '''
 ###
 
-dataLock = threading.Lock()
+connLock = threading.Lock()
+prupLock = threading.Lock()
+discLock = threading.Lock()
+getvLock = threading.Lock()
+clopLock = threading.Lock()
+instLock = threading.Lock()
+rmveLock = threading.Lock()
+contLock = threading.Lock()
 # Global variables we want to keep track of
 MY_ADDR = ''
 SUCC_ADDR = ''
@@ -180,7 +187,7 @@ def handleRequests(connInfo):
     global SUCC_ADDR
     #Protocol for incoming CONN
     if code == "CONN":
-        dataLock.acquire()
+        connLock.acquire()
         connectorAddr = recvAddr(sock)
         connectorHash = getHashKey(connectorAddr)
         if closestToKey(connectorHash) == MY_ADDR:
@@ -195,9 +202,9 @@ def handleRequests(connInfo):
         else:
             sock.send("F".encode())
             sock.close()
-        dataLock.release()
+        connLock.release()
     elif code == "PRUP":
-        dataLock.acquire()
+        prupLock.acquire()
         print("Got prup req")
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
@@ -206,16 +213,16 @@ def handleRequests(connInfo):
         updateFingers(PRED_ADDR)
         updateFingerTable()
         sock.send("T".encode())
-        dataLock.release()
+        prupLock.release()
     elif code == "CLOP":
-        dataLock.acquire()
+        clopLock.acquire()
         print("CLOP REQUEST...")
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         sendAddr(closest, sock)
-        dataLock.release()
+        clopLock.release()
     elif code == "CONT":
-        dataLock.acquire()
+        contLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -226,9 +233,9 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else: 
             sock.send("F".encode())
-        dataLock.release()
+        contLock.release()
     elif code == "INST":
-        dataLock.acquire()
+        instLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -237,9 +244,9 @@ def handleRequests(connInfo):
             sock.send("T".encode())
         else:
             sock.send("F".encode())
-        dataLock.release()
+        instLock.release()
     elif code == "RMVE":
-        dataLock.acquire()
+        rmveLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -250,9 +257,9 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else:
             sock.send("F".encode())
-        dataLock.release()
+        rmveLock.release()
     elif code == "GETV":
-        dataLock.acquire()
+        getvLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -265,9 +272,9 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else:
             sock.send("F".encode())
-        dataLock.release()
+        getvLock.release()
     elif code == "DISC":
-        dataLock.acquire()
+        discLock.acquire()
         newSucc = recvAddr(sock)
         sz = recvAll(sock, 4)
         sz = int.from_bytes(sz, byteorder="little", signed=False)
@@ -279,7 +286,7 @@ def handleRequests(connInfo):
             sock.send("T".encode())
             removeFromFingerTable(SUCC_ADDR)
             SUCC_ADDR = newSucc
-        dataLock.release()
+        discLock.release()
     else:
         pass
 
