@@ -259,7 +259,7 @@ def handleRequests(connInfo):
         if newSucc == MY_ADDR:
             sock.send("T".encode())
             resetFingerTable()
-        elif prup(newSucc) == True:
+        elif prup(newSucc, sock) == True:
             sock.send("T".encode())
             removeForFingerTable(SUCC_ADDR)
             SUCC_ADDR = newSucc
