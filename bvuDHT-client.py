@@ -251,9 +251,63 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else:
             sock.send("F".encode())
-
+    elif code == "DISC":
+        newSucc = recvAddr(sock)
+        sz = recvAll(sock, 4)
+        sz = int.from_bytes(sz, byteorder="little", signed=False)
+        recvFiles(sz, sock, "")
+        if newSucc == MY_ADDR:
+            sock.send("T".encode())
+            resetFingerTable()
+        elif prup(newSucc) == True:
+            sock.send("T".encode())
+            removeForFingerTable(SUCC_ADDR)
+            SUCC_ADDR = newSucc
     else:
-        print("Got something else in handleRequests")
+        pass
+
+def prup(targetAddr, confirmSock):
+    print("In prup func")
+    succ_list = targetAddr.split(":")
+    newSuccSock = socket(AF_INET, SOCK_STREAM)
+    newSuccSock.connect( (succ_list[0], int(succ_list[1])))
+    code = "PRUP"
+    print("Sending prup to {}".format(targetAddr))
+    newSuccSock.send(code.encode())
+    sendAddr(MY_ADDR, newSuccSock)
+    TF = newSuccSock.recv(1)
+    TF = TF.decode()
+    if TF == "T":
+        # Send Final True to person you connected to in the beginning
+        confirmSock.send("T".encode())
+        print("sent t")
+        # Close both the sockets
+        newSuccSock.close()
+        confirmSock.close()
+        return True
+    return False
+
+
+def resetFingerTable():
+    global FINGERS
+    global PRED_ADDR
+    global SUCC_ADDR
+    FINGERS = []
+    offsets = getFingerOffsets(MY_ADDR)
+    for i in range(len(offsets)):
+        FINGERS.append((offsets[i], MY_ADDR))
+    PRED_ADDR = MY_ADDR
+    SUCC_ADDR = MY_ADDR
+    updateFingerTable()
+
+
+def removeFromFingerTable(addr):
+    global FINGERS
+    for i in range(len(FINGERS)):
+        if FINGERS[i][1] == addr:
+            FINGERS[i] = (FINGERS[i][0], MY_ADDR)
+    updateFingerTable()
+    
 
 
 def updateFingerTable():
@@ -589,20 +643,7 @@ def joinSystem(IP, port):
         numFiles = int.from_bytes(numFiles, byteorder="little", signed=False)
         recvFiles(numFiles, joinSock, "")
         # Do Predecessor update stuff
-        succ_list = SUCC_ADDR.split(":")
-        newSuccSock = socket(AF_INET, SOCK_STREAM)
-        newSuccSock.connect( (succ_list[0], int(succ_list[1])))
-        prup = "PRUP"
-        newSuccSock.send(prup.encode())
-        sendAddr(MY_ADDR, newSuccSock)
-        TF = newSuccSock.recv(1)
-        TF = TF.decode()
-        if TF == "T":
-            # Send Final True to person you connected to in the beginning
-            joinSock.send("T".encode())
-            # Close both the sockets
-            newSuccSock.close()
-            joinSock.close()
+        prup(SUCC_ADDR, joinSock)
     else:
         print("That was not the correct person to connect to.")
         print("They do not own the spcae you need to be inserted into.")
