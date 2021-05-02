@@ -256,12 +256,12 @@ def handleRequests(connInfo):
         sz = recvAll(sock, 4)
         sz = int.from_bytes(sz, byteorder="little", signed=False)
         recvFiles(sz, sock, "")
-        if newSucc == MY_ADDR:
+        if PRED_ADDR == SUCC_ADDR:
             sock.send("T".encode())
             resetFingerTable()
         elif prup(newSucc, sock) == True:
             sock.send("T".encode())
-            removeForFingerTable(SUCC_ADDR)
+            removeFromFingerTable(SUCC_ADDR)
             SUCC_ADDR = newSucc
     else:
         pass
