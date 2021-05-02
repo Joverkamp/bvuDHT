@@ -8,16 +8,10 @@ import threading
 import os
 
 ###
-'''                             #####
+'''                             
 MAKE SURE TO DO THREAD LOCKING  #####
-
-Update finger table when you get a false and when 
-you get a prup request.
-#####
 '''
 ###
-
-
 
 # Global variables we want to keep track of
 MY_ADDR = ''
@@ -35,6 +29,7 @@ FINGERS = []
 COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help', 'get']
 # Port we are listening on this will get overwritten
 listeningPort = 1111
+
 
 def printFingers():
     myKey = getHashKey(MY_ADDR)
@@ -60,10 +55,12 @@ def printFingers():
             print("   {}".format(finger[0]))
             i = i+1
 
+
 def sendAddr(addr, sock):
     sz = len(addr)
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     sock.send(addr.encode())
+
 
 def readFile(fileHash, readFrom):
     if readFrom == "local":
@@ -77,12 +74,14 @@ def readFile(fileHash, readFrom):
         byte = f.read(1)
     return fileBytes
 
+
 def sendFile(fileHash, fileBytes, sock):
     sz = len(fileBytes)
     sock.send(fileHash.encode())
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     for byte in fileBytes:
         sock.send(byte)
+
 
 def recvFiles(numFiles, sock, writeTo):
     for i in range(numFiles):
@@ -109,7 +108,8 @@ def deleteFiles(toDelete):
             print("File not deleted {}".format(f))
             return False
 
-def filesTransfer(sock, connectorHash):
+
+def filesTransfer(sock, connectorHash, Type):
     # Retreive files available for sending
     folder = Path("./repository")
     if not folder.exists():
@@ -123,15 +123,19 @@ def filesTransfer(sock, connectorHash):
     filesToSend = []
     succHash = getHashKey(SUCC_ADDR)
 
-    # Find which files to transfer considering wrap around
-    if succHash < connectorHash:
-        for fileHash in fileHashes:
-            if fileHash < succHash or fileHash > connectorHash:
-                filesToSend.append(fileHash)
+    if Type == "conn":
+        # Find which files to transfer considering wrap around
+        if succHash < connectorHash:
+            for fileHash in fileHashes:
+                if fileHash < succHash or fileHash > connectorHash:
+                    filesToSend.append(fileHash)
+        else:
+            for fileHash in fileHashes:
+                if fileHash > connectorHash:
+                    filesToSend.append(fileHash)
     else:
-        for fileHash in fileHashes:
-            if fileHash > connectorHash:
-                filesToSend.append(fileHash)
+        # Add all files we own to 
+        pass
 
     # Send number of files followed by each file following protocol
     sz = len(filesToSend)
@@ -147,9 +151,7 @@ def recvAll(sock, numBytes):
     data = b''
     while (len(data) < numBytes):
         data += sock.recv(numBytes - len(data))
-        print(data.decode() + " : -----------------------")
         if len(data) == 0:
-            print("breaking in recvAll this is probably bad")
             break
     return data
 
@@ -182,7 +184,7 @@ def handleRequests(connInfo):
         if closestToKey(connectorHash) == MY_ADDR:
             sock.send("T".encode())
             sendAddr(SUCC_ADDR, sock)
-            toDelete = filesTransfer(sock, connectorHash)
+            toDelete = filesTransfer(sock, connectorHash, "conn")
             confirm = recvAll(sock, 1).decode()
             if confirm == "T":
                 updateFingers(connectorAddr)
@@ -367,6 +369,7 @@ def setFingers(Addr):
         FINGERS.append((finger, recvAddress))
     updateFingerTable()
 
+
 # Finds out who we know that is closest to the key
 def closestToKey(key):
     for i in range(len(FINGER_TABLE) - 1):
@@ -445,6 +448,7 @@ def getv(searchString):
         else:
             print("That file does not exist.")
 
+
 # Removes a file from teh DHT if it's there
 def remove(searchString):
     key = getHashKey(searchString)
@@ -506,13 +510,32 @@ def contains(searchString):
                 print("File {} found.".format(searchString))
                 return True
 
+
 def disconnect():
+    # Disconnect fro it it's a one man system
     if MY_ADDR == SUCC_ADDR:
         print("Goodbye")
         exit(0)
+#    if SUCC_ADDR == PRED_ADDR:
+
+    # Disconnect over the network
     else:
-        pass
-    #TODO network stuff
+        # Get our hash key to be used as a dummy variable
+        myHash = getHashKey(MY_ADDR)
+        # Get predecessors address connect to them and start sending stuff
+        predAddr = PRED_ADDR.split(":")
+        predSock = socket(AF_INET, SOCK_STREAM)
+        predSock.connect( (predAddr[0], int(predAddr[1])))
+        predSock.send("DISC".encode())
+        sendAddr(SUCC_ADDR, predSock)
+        # Send all the files we own to the predecessor
+        toSend = filesTransfer(predSock, myHash, "disc")
+        # Receive the T from the Predecessor so that you know to quit
+        TF = recvAll(predSock, 1).decode()
+        if TF == "T":
+            predSock.close()
+            print("Goodbye")
+
 
 # Function to call when the user wants to create their own system
 def startNewSystem():
@@ -530,6 +553,7 @@ def startNewSystem():
         FINGER_TABLE.append((getHashKey(MY_ADDR), MY_ADDR))
     FINGER_TABLE.sort()
     FINGERS.sort()
+
 
 # Function to call when the user is joining by another user
 def joinSystem(IP, port):
@@ -605,7 +629,6 @@ def getMyFileKeys():
     return fileKeys
 
 
-
 # Function that prints out all available ways to use the system
 def help():
     print('Here is a list of possible commands...')
@@ -653,7 +676,7 @@ if __name__ == '__main__':
         port = int(argv[2])
         joinSystem(IP, port)
 
-    listenThread = threading.Thread(target=listen, args=(listener,),daemon=False).start()
+    listenThread = threading.Thread(target=listen, args=(listener,),daemon=True).start()
 
     print("My address as a hash:  " + getHashKey(MY_ADDR))
     print("My key: {}".format(getHashKey(MY_ADDR)))
@@ -667,9 +690,12 @@ if __name__ == '__main__':
         command = line.split()[0]
         command = command.lower()
         if command not in COMMANDS:
+            print("That is not a valid command.")
+            help()
             continue
         if command == 'disconnect':
             disconnect()
+            running = False
         elif command == 'help':
             help()
         else:
