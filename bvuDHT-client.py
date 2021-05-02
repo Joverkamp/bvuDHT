@@ -635,8 +635,9 @@ def joinSystem(IP, port):
         updateFingers(PRED_ADDR)
         updateFingers(SUCC_ADDR)
         updateFingerTable()
-
-        setFingers(PRED_ADDR)
+        
+        if PRED_ADDR != SUCC_ADDR:
+            setFingers(PRED_ADDR)
 
         # Get all the files we need to take over and put in repository
         numFiles = recvAll(joinSock, 4)
