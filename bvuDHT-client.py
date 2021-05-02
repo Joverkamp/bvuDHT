@@ -8,14 +8,11 @@ import threading
 import os
 
 # Different lock so we don't overwrite any data
-connLock = threading.Lock()
-prupLock = threading.Lock()
-discLock = threading.Lock()
-getvLock = threading.Lock()
-clopLock = threading.Lock()
-instLock = threading.Lock()
-rmveLock = threading.Lock()
-contLock = threading.Lock()
+MY_ADDRLock = threading.Lock()
+SUCC_ADDRLock = threading.Lock()
+PRED_ADDRLock = threading.Lock()
+FINGERSLock = threading.Lock()
+FINGER_TABLELock = threading.Lock()
 # Global variables we want to keep track of
 MY_ADDR = ''
 SUCC_ADDR = ''
@@ -33,9 +30,13 @@ COMMANDS = ['contains', 'insert', 'remove', 'disconnect', 'help', 'get']
 # Port we are listening on this will get overwritten
 listeningPort = 1111
 
-
 # Function that helps to print out our finger table nicely
 def printFingers():
+    MY_ADDRLock.acquire()
+    SUCC_ADDRLock.acquire()
+    PRED_ADDRLock.acquire()
+    FINGER_TABLELock.acquire()
+
     myKey = getHashKey(MY_ADDR)
     predKey = getHashKey(PRED_ADDR)
     succKey = getHashKey(SUCC_ADDR)
@@ -51,6 +52,9 @@ def printFingers():
     print("Succ Address")
     print("   {}".format(SUCC_ADDR))
     print("   {}".format(succKey))
+    MY_ADDRLock.release()
+    SUCC_ADDRLock.release()
+    PRED_ADDRLock.release()
     i = 0
     for finger in FINGER_TABLE:
         if finger[0] != myKey and finger[0] != predKey and finger[0] != succKey:
@@ -58,6 +62,7 @@ def printFingers():
             print("   {}".format(finger[1]))
             print("   {}".format(finger[0]))
             i = i+1
+    FINGER_TABLELock.release()
 
 
 # Protocol for sending addresses
@@ -86,9 +91,10 @@ def readFile(fileHash, readFrom):
 
 # Protocol for sending a file. Send number of bytes then then the key
 # and then each byte
-def sendFile(fileHash, fileBytes, sock):
+def sendFile(fileHash, fileBytes, sock, get):
     sz = len(fileBytes)
-    sock.send(fileHash.encode())
+    if get != "get":
+        sock.send(fileHash.encode())
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     for byte in fileBytes:
         sock.send(byte)
@@ -158,7 +164,7 @@ def filesTransfer(sock, connectorHash, Type):
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     for fileHash in filesToSend:
         fileBytes = readFile(fileHash, "")
-        sendFile(fileHash, fileBytes, sock)
+        sendFile(fileHash, fileBytes, sock, "")
 
     return filesToSend
 
@@ -182,6 +188,7 @@ def recvAddr(sock):
     return addr
 
 
+# Sets up teh ability to listen for up to four simultaneous connections
 def listen(listener):
     #Create a listening socket to receive requests from peers
     listener.listen(4)
@@ -198,7 +205,6 @@ def handleRequests(connInfo):
     global SUCC_ADDR
     #Protocol for incoming CONN refer to protocol file for details
     if code == "CONN":
-        connLock.acquire()
         connectorAddr = recvAddr(sock)
         connectorHash = getHashKey(connectorAddr)
         if closestToKey(connectorHash) == MY_ADDR:
@@ -213,10 +219,8 @@ def handleRequests(connInfo):
         else:
             sock.send("F".encode())
             sock.close()
-        connLock.release()
     #Protocol for incoming PRUP refer to protocol file for details
     elif code == "PRUP":
-        prupLock.acquire()
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
         if SUCC_ADDR == MY_ADDR:
@@ -224,17 +228,13 @@ def handleRequests(connInfo):
         updateFingers(PRED_ADDR)
         updateFingerTable()
         sock.send("T".encode())
-        prupLock.release()
     #Protocol for incoming CLOP refer to protocol file for details
     elif code == "CLOP":
-        clopLock.acquire()
         print("CLOP REQUEST...")
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         sendAddr(closest, sock)
-        clopLock.release()
     elif code == "CONT":
-        contLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -245,10 +245,8 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else: 
             sock.send("F".encode())
-        contLock.release()
     #Protocol for incoming INST refer to protocol file for details
     elif code == "INST":
-        instLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -257,10 +255,8 @@ def handleRequests(connInfo):
             sock.send("T".encode())
         else:
             sock.send("F".encode())
-        instLock.release()
     #Protocol for incoming RMVE refer to protocol file for details
     elif code == "RMVE":
-        rmveLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -271,10 +267,8 @@ def handleRequests(connInfo):
                 sock.send("F".encode())
         else:
             sock.send("F".encode())
-        rmveLock.release()
     #Protocol for incoming GETV refer to protocol file for details
     elif code == "GETV":
-        getvLock.acquire()
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -282,15 +276,13 @@ def handleRequests(connInfo):
             if containedLocal(key) == True:
                 sock.send("T".encode())
                 fileBytes = readFile(key,"")
-                sendFile(key, fileBytes, sock)
+                sendFile(key, fileBytes, sock, "get")
             else:
                 sock.send("F".encode())
         else:
             sock.send("F".encode())
-        getvLock.release()
     #Protocol for incoming DISC refer to protocol file for details
     elif code == "DISC":
-        discLock.acquire()
         newSucc = recvAddr(sock)
         sz = recvAll(sock, 4)
         sz = int.from_bytes(sz, byteorder="little", signed=False)
@@ -302,7 +294,6 @@ def handleRequests(connInfo):
             sock.send("T".encode())
             removeFromFingerTable(SUCC_ADDR)
             SUCC_ADDR = newSucc
-        discLock.release()
     else:
         pass
 
@@ -514,7 +505,7 @@ def insert(searchString):
             insert(searchString)
         else:
             fileBytes = readFile(searchString, "local")
-            sendFile(key, fileBytes, instSock)
+            sendFile(key, fileBytes, instSock, "get")
             TF = recvAll(instSock, 1).decode()
             if TF == "T":
                 instSock.close()
