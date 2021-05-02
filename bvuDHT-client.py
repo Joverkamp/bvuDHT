@@ -94,9 +94,23 @@ def sendFile(fileHash, fileBytes, sock, get):
         sock.send(byte)
 
 
+# Function very similar to recvFiles, but does not use key since some 
+# of the protocol does not want us to send key along with 
+def recvFile(sock, key, writeTo):
+     sz = recvAll(sock, 4)
+     sz = int.from_bytes(sz, byteorder="little", signed=False)
+     data = recvAll(sock, sz)
+     if writeTo == "local":
+         path = Path('./' + key)
+     else:
+         path = Path('./repository/' + key)
+     with open(path, 'wb') as outf:
+         outf.write(data)
+    
+
 # Receive a given number of files following our protocol. WriteTo specifies 
 # whether to write locally or to our DHT repository
-def recvFiles(numFiles, sock, writeTo):
+def recvFiles(numFiles, sock, writeTo): # MIGHT HAVE TO ADD ANOTHER THING HERE FOR INSERT since we dont eget a key
     for i in range(numFiles):
         key = recvAll(sock, 40)
         key = key.decode()
@@ -199,6 +213,7 @@ def handleRequests(connInfo):
     global SUCC_ADDR
     #Protocol for incoming CONN refer to protocol file for details
     if code == "CONN":
+        print("CONN REQUEST...")
         connectorAddr = recvAddr(sock)
         connectorHash = getHashKey(connectorAddr)
         if closestToKey(connectorHash) == MY_ADDR:
@@ -215,6 +230,7 @@ def handleRequests(connInfo):
             sock.close()
     #Protocol for incoming PRUP refer to protocol file for details
     elif code == "PRUP":
+        print("PRUP REQUEST...")
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
         if SUCC_ADDR == MY_ADDR:
@@ -241,16 +257,18 @@ def handleRequests(connInfo):
             sock.send("F".encode())
     #Protocol for incoming INST refer to protocol file for details
     elif code == "INST":
+        print("INST REQUEST...")
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
             sock.send("T".encode())
-            recvFiles(1, sock, "") 
+            recvFile(sock, key, "") 
             sock.send("T".encode())
         else:
             sock.send("F".encode())
     #Protocol for incoming RMVE refer to protocol file for details
     elif code == "RMVE":
+        print("RMVE REQUEST...")
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -263,6 +281,7 @@ def handleRequests(connInfo):
             sock.send("F".encode())
     #Protocol for incoming GETV refer to protocol file for details
     elif code == "GETV":
+        print("GETV REQUEST...")
         key = recvAll(sock, 40).decode()
         closest = closestToKey(key)
         if closest == MY_ADDR:
@@ -270,6 +289,7 @@ def handleRequests(connInfo):
             if containedLocal(key) == True:
                 sock.send("T".encode())
                 fileBytes = readFile(key,"")
+                ##### CANT USE sendFIle here because it sends a key and we cant send a key too
                 sendFile(key, fileBytes, sock, "get")
             else:
                 sock.send("F".encode())
@@ -277,6 +297,7 @@ def handleRequests(connInfo):
             sock.send("F".encode())
     #Protocol for incoming DISC refer to protocol file for details
     elif code == "DISC":
+        print("DISC REQUEST...")
         newSucc = recvAddr(sock)
         sz = recvAll(sock, 4)
         sz = int.from_bytes(sz, byteorder="little", signed=False)
@@ -437,6 +458,7 @@ def closestNow(Addr, key):
     askAddr = Addr
     recvAddress = "1"
     while askAddr != recvAddress:
+        print("infinte")
         askAddrSplit = askAddr.split(":")
         clopSock = socket(AF_INET, SOCK_STREAM)
         clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
@@ -445,8 +467,10 @@ def closestNow(Addr, key):
         recvAddress = recvAddr(clopSock)
         clopSock.close()
         if recvAddress == askAddr:
+            print("Returning")
             return recvAddress   
         askAddr = recvAddress
+    print("returningng")
     return recvAddress            
           
 
@@ -533,11 +557,15 @@ def getv(searchString):
             if TF == "F":
                 get(searchString)
             else:
+
+##
+##  rework this maybe doesn't folloow protocol
+##
                 TF = recvAll(getSock, 1).decode()
                 if TF == "F":
                     print("That file, {} does not exist anymore.".format(searchString))
                 else:
-                    recvFiles(1, getSock, "local")
+                    recvFile(1, getSock, "local")
                     print("Received {}.".format(searchString))
         else:
             print("That file does not exist.")
