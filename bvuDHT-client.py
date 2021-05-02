@@ -32,11 +32,6 @@ listeningPort = 1111
 
 # Function that helps to print out our finger table nicely
 def printFingers():
-    MY_ADDRLock.acquire()
-    SUCC_ADDRLock.acquire()
-    PRED_ADDRLock.acquire()
-    FINGER_TABLELock.acquire()
-
     myKey = getHashKey(MY_ADDR)
     predKey = getHashKey(PRED_ADDR)
     succKey = getHashKey(SUCC_ADDR)
@@ -52,9 +47,6 @@ def printFingers():
     print("Succ Address")
     print("   {}".format(SUCC_ADDR))
     print("   {}".format(succKey))
-    MY_ADDRLock.release()
-    SUCC_ADDRLock.release()
-    PRED_ADDRLock.release()
     i = 0
     for finger in FINGER_TABLE:
         if finger[0] != myKey and finger[0] != predKey and finger[0] != succKey:
@@ -62,7 +54,6 @@ def printFingers():
             print("   {}".format(finger[1]))
             print("   {}".format(finger[0]))
             i = i+1
-    FINGER_TABLELock.release()
 
 
 # Protocol for sending addresses
@@ -225,9 +216,9 @@ def handleRequests(connInfo):
         PRED_ADDR = newPred
         if SUCC_ADDR == MY_ADDR:
             SUCC_ADDR = PRED_ADDR         
+        sock.send("T".encode())
         updateFingers(PRED_ADDR)
         updateFingerTable()
-        sock.send("T".encode())
     #Protocol for incoming CLOP refer to protocol file for details
     elif code == "CLOP":
         print("CLOP REQUEST...")
@@ -290,6 +281,7 @@ def handleRequests(connInfo):
         if PRED_ADDR == SUCC_ADDR:
             sock.send("T".encode())
             resetFingerTable()
+            print("GETTING HERE")
         elif prup(newSucc, sock) == True:
             sock.send("T".encode())
             removeFromFingerTable(SUCC_ADDR)
@@ -339,6 +331,7 @@ def removeFromFingerTable(addr):
     for i in range(len(FINGERS)):
         if FINGERS[i][1] == addr:
             FINGERS[i] = (FINGERS[i][0], MY_ADDR)
+    
     updateFingerTable()
     
 
@@ -451,12 +444,12 @@ def closestNow(Addr, key):
             return recvAddress   
         askAddr = recvAddress
     return recvAddress            
-                                  
+          
 
 # Gets all of our offsets and calls closest now to figure our who is the 
 # closest to the offset of our finger table hash
-def setFingers(Addr):             
-    global FINGERS         
+def setFingers(Addr):
+    global FINGERS 
     FINGERS = []
     offsets = getFingerOffsets(MY_ADDR)
     for finger in offsets:
@@ -470,6 +463,7 @@ def closestToKey(key):
     for i in range(len(FINGER_TABLE) - 1):
         if key > FINGER_TABLE[i][0] and key < FINGER_TABLE[i+1][0]:
             return FINGER_TABLE[i][1]
+
     return FINGER_TABLE[-1][1]
 
 
