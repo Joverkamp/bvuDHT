@@ -58,13 +58,16 @@ def printFingers():
             print("   {}".format(finger[0]))
             i = i+1
 
-
+# Protocol for sending addresses
+# Send size and then address
 def sendAddr(addr, sock):
     sz = len(addr)
     sock.send(sz.to_bytes(4, byteorder="little", signed=False))
     sock.send(addr.encode())
 
-
+# read a file given its hash(file name) and produce an array of bytes
+# readFrom specifies whether to read from your local files not in the DHT
+# if passed "local" or else read from the "repository dir
 def readFile(fileHash, readFrom):
     if readFrom == "local":
         f = open("{}".format(fileHash), "rb")
@@ -77,7 +80,8 @@ def readFile(fileHash, readFrom):
         byte = f.read(1)
     return fileBytes
 
-
+# protocol for sending a file. Send number of bytes then then the key
+# and then each byte
 def sendFile(fileHash, fileBytes, sock):
     sz = len(fileBytes)
     sock.send(fileHash.encode())
@@ -85,7 +89,8 @@ def sendFile(fileHash, fileBytes, sock):
     for byte in fileBytes:
         sock.send(byte)
 
-
+# receive a given number of files following our protocol. WriteTo specifies 
+#  whether to write locally or to our DHT repository
 def recvFiles(numFiles, sock, writeTo):
     for i in range(numFiles):
         key = recvAll(sock, 40)
@@ -100,7 +105,7 @@ def recvFiles(numFiles, sock, writeTo):
         with open(path, 'wb') as outf:
             outf.write(data)
 
-
+# delete files from DHT repository given an array of file keys
 def deleteFiles(toDelete):
     for f in toDelete:
         try:
@@ -132,13 +137,14 @@ def filesTransfer(sock, connectorHash, Type):
             for fileHash in fileHashes:
                 if fileHash < succHash or fileHash > connectorHash:
                     filesToSend.append(fileHash)
+        # Find files when no wrap around
         else:
             for fileHash in fileHashes:
                 if fileHash > connectorHash:
                     filesToSend.append(fileHash)
     else:
-        # Add all files we own to 
-        pass
+        # Add all files we own
+        filesToSend = getMyFileKeys() 
 
     # Send number of files followed by each file following protocol
     sz = len(filesToSend)
@@ -149,7 +155,7 @@ def filesTransfer(sock, connectorHash, Type):
 
     return filesToSend
 
-
+# Receiving bytes until bytes = numBytes
 def recvAll(sock, numBytes):
     data = b''
     while (len(data) < numBytes):
@@ -158,7 +164,7 @@ def recvAll(sock, numBytes):
             break
     return data
 
-
+# receive size of addr followed by the addr
 def recvAddr(sock):
     data = recvAll(sock, 4)
     addrSize = int.from_bytes(data, byteorder="little", signed=False)
@@ -180,7 +186,7 @@ def handleRequests(connInfo):
     code  = recvAll(sock, 4).decode()
     global PRED_ADDR
     global SUCC_ADDR
-    #Protocol for incoming CONN
+    #Protocol for incoming CONN refer to protocol file for details
     if code == "CONN":
         connLock.acquire()
         connectorAddr = recvAddr(sock)
@@ -198,9 +204,9 @@ def handleRequests(connInfo):
             sock.send("F".encode())
             sock.close()
         connLock.release()
+    #Protocol for incoming PRUP refer to protocol file for details
     elif code == "PRUP":
         prupLock.acquire()
-        print("Got prup req")
         newPred = recvAddr(sock)
         PRED_ADDR = newPred
         if SUCC_ADDR == MY_ADDR:
@@ -209,6 +215,7 @@ def handleRequests(connInfo):
         updateFingerTable()
         sock.send("T".encode())
         prupLock.release()
+    #Protocol for incoming CLOP refer to protocol file for details
     elif code == "CLOP":
         clopLock.acquire()
         print("CLOP REQUEST...")
@@ -229,6 +236,7 @@ def handleRequests(connInfo):
         else: 
             sock.send("F".encode())
         contLock.release()
+    #Protocol for incoming INST refer to protocol file for details
     elif code == "INST":
         instLock.acquire()
         key = recvAll(sock, 40).decode()
@@ -240,6 +248,7 @@ def handleRequests(connInfo):
         else:
             sock.send("F".encode())
         instLock.release()
+    #Protocol for incoming RMVE refer to protocol file for details
     elif code == "RMVE":
         rmveLock.acquire()
         key = recvAll(sock, 40).decode()
@@ -253,6 +262,7 @@ def handleRequests(connInfo):
         else:
             sock.send("F".encode())
         rmveLock.release()
+    #Protocol for incoming GETV refer to protocol file for details
     elif code == "GETV":
         getvLock.acquire()
         key = recvAll(sock, 40).decode()
@@ -268,6 +278,7 @@ def handleRequests(connInfo):
         else:
             sock.send("F".encode())
         getvLock.release()
+    #Protocol for incoming DISC refer to protocol file for details
     elif code == "DISC":
         discLock.acquire()
         newSucc = recvAddr(sock)
@@ -338,7 +349,10 @@ def updateFingerTable():
     FINGER_TABLE.sort()
     printFingers()
 
-
+# Algorithm for replacing items in your fingers
+# Walks through fingers and if the new peerAddr key is closer to 
+# the offset, replace the finger value. Accounts for values outside
+# the finger keyspace and wrap around.
 def updateFingers(peerAddr):
     global FINGERS
     peerKey = getHashKey(peerAddr)
