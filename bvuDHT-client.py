@@ -7,11 +7,6 @@ from pathlib import Path
 import threading
 import os
 
-###
-'''                             
-MAKE SURE TO DO THREAD LOCKING  #####
-'''
-###
 
 connLock = threading.Lock()
 prupLock = threading.Lock()
