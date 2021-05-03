@@ -111,7 +111,7 @@ def recvFile(sock, key, writeTo):
 
 # Receive a given number of files following our protocol. WriteTo specifies 
 # whether to write locally or to our DHT repository
-def recvFiles(numFiles, sock, writeTo): # MIGHT HAVE TO ADD ANOTHER THING HERE FOR INSERT since we dont eget a key
+def recvFiles(numFiles, sock, writeTo): 
     for i in range(numFiles):
         key = recvAll(sock, 40)
         key = key.decode()
@@ -199,7 +199,7 @@ def recvAddr(sock):
 
 # Sets up teh ability to listen for up to four simultaneous connections
 def listen(listener):
-    #Create a listening socket to receive requests from peers
+    # Create a listening socket to receive requests from peers
     listener.listen(4)
     running = True
     while running:
