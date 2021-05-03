@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from subprocess import check_output
 import shutil
 from socket import *
@@ -221,8 +223,13 @@ def handleRequests(connInfo):
             toDelete = filesTransfer(sock, connectorHash, "conn")
             confirm = recvAll(sock, 1).decode()
             if confirm == "T":
+                FINGERSLock.acquire() 
                 updateFingers(connectorAddr)
+                FINGERSLock.release()
+
+                FINGER_TABLELock.acquire()
                 updateFingerTable()
+                FINGER_TABLELock.release()
                 deleteFiles(toDelete)
         else:
             sock.send("F".encode())
@@ -288,7 +295,6 @@ def handleRequests(connInfo):
             if containedLocal(key) == True:
                 sock.send("T".encode())
                 fileBytes = readFile(key,"")
-                ##### CANT USE sendFIle here because it sends a key and we cant send a key too
                 sendFile(key, fileBytes, sock, "get")
             else:
                 sock.send("F".encode())
@@ -348,9 +354,21 @@ def resetFingerTable():
     offsets = getFingerOffsets(MY_ADDR)
     for i in range(len(offsets)):
         FINGERS.append((offsets[i], MY_ADDR))
+    MY_ADDRLock.acquire()
+    
+    PRED_ADDRLock.acquire()
     PRED_ADDR = MY_ADDR
+    PRED_ADDRLock.release()
+
+    SUCC_ADDRLock.acquire()
     SUCC_ADDR = MY_ADDR
+    SUCC_ADDRLock.release()
+
+    MY_ADDRLock.release()
+
+    FINGER_TABLELock.acquire()
     updateFingerTable()
+    FINGER_TABLELock.release()
 
 
 # Removes one person from the finger table
@@ -546,7 +564,7 @@ def getv(searchString):
         shutil.copy('repository/{}'.format(key), key)
     else:
         if contains(searchString):
-            print("It is a file")
+            print("That file exists")
             storeAddr = closestToKey(key)
             closest = closestNow(storeAddr,key)
             closest = closest.split(":")
