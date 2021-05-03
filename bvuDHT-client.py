@@ -181,7 +181,6 @@ def filesTransfer(sock, connectorHash, Type):
 def recvAll(sock, numBytes):
     data = b''
     while (len(data) < numBytes):
-        print("____________________" + str(type(sock)))
         data += sock.recv(numBytes - len(data))
         if len(data) == 0:
             break
@@ -459,7 +458,6 @@ def closestNow(Addr, key):
     askAddr = Addr
     recvAddress = "1"
     while askAddr != recvAddress:
-        print("infinte")
         askAddrSplit = askAddr.split(":")
         clopSock = socket(AF_INET, SOCK_STREAM)
         clopSock.connect( (askAddrSplit[0], int(askAddrSplit[1])))
@@ -468,10 +466,8 @@ def closestNow(Addr, key):
         recvAddress = recvAddr(clopSock)
         clopSock.close()
         if recvAddress == askAddr:
-            print("Returning")
             return recvAddress   
         askAddr = recvAddress
-    print("returningng")
     return recvAddress            
           
 
@@ -539,7 +535,6 @@ def insert(searchString):
 
 # Grabs the file and stores it in your local repository 
 def getv(searchString):
-    print("entered function")
     key = getHashKey(searchString)
     if containedLocal(key) == True:
         print("Copied file {} from repository to your local directory.".format(searchString))
@@ -558,10 +553,6 @@ def getv(searchString):
             if TF == "F":
                 get(searchString)
             else:
-
-##
-##  rework this maybe doesn't folloow protocol
-##
                 TF = recvAll(getSock, 1).decode()
                 if TF == "F":
                     print("That file, {} does not exist anymore.".format(searchString))
