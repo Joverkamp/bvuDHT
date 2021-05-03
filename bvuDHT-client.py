@@ -308,7 +308,11 @@ def handleRequests(connInfo):
             FINGER_TABLELock.release()
         elif prup(newSucc, sock) == True:
             sock.send("T".encode())
+            FINGER_TABLELock.acquire()
+            FINGERSLock.acquire()
             removeFromFingerTable(SUCC_ADDR)
+            FINGER_TABLELock.release()
+            FINGERSLock.release()
             SUCC_ADDR = newSucc
     else:
         pass
@@ -689,12 +693,17 @@ def joinSystem(IP, port):
         # Set rest of finger table    
         FINGER_TABLE = []
         offsets = getFingerOffsets(MY_ADDR)
+        
+        FINGERSLock.acquire() 
         for finger in offsets:
             FINGERS.append((finger, MY_ADDR))
-
         updateFingers(PRED_ADDR)
         updateFingers(SUCC_ADDR)
+        FINGERSLock.release()
+
+        FINGER_TABLELock.acquire()
         updateFingerTable()
+        FINGER_TABLELock.release()
         
         if PRED_ADDR != SUCC_ADDR:
             setFingers(PRED_ADDR)
