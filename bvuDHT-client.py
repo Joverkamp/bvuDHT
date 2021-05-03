@@ -7,14 +7,13 @@ from pathlib import Path
 import threading
 import os
 
-# Different lock so we don't overwrite any data
-'''
+# Different locks so we don't overwrite any data
 MY_ADDRLock = threading.Lock()
 SUCC_ADDRLock = threading.Lock()
 PRED_ADDRLock = threading.Lock()
 FINGERSLock = threading.Lock()
 FINGER_TABLELock = threading.Lock()
-'''
+# Print lock for the finger table so things look nice
 printLock = threading.Lock()
 # Global variables we want to keep track of
 MY_ADDR = ''
@@ -304,7 +303,9 @@ def handleRequests(connInfo):
         recvFiles(sz, sock, "")
         if PRED_ADDR == SUCC_ADDR:
             sock.send("T".encode())
+            FINGER_TABLELock.acquire()
             resetFingerTable()
+            FINGER_TABLELock.release()
         elif prup(newSucc, sock) == True:
             sock.send("T".encode())
             removeFromFingerTable(SUCC_ADDR)
